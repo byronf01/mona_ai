@@ -14,14 +14,14 @@ import numpy as np
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # device = "cpu"
 enc = tiktoken.get_encoding("gpt2")
-HEADS = 8
-N_LAYER = 8
-LR = 3e-4
 MAX_ITERS = 500000
-EVAL_INTERVAL = 2000
-SAVE_INTERVAL = 10000
-EVAL_ITERS = 200
+EVAL_INTERVAL = 5000
+SAVE_INTERVAL = 2000
+EVAL_ITERS = 150
 DROPOUT = 0.2
+HEADS = 8
+NX = 8
+LR = 3e-4 # 6e-4
 BATCH_SIZE = 14 # 64
 CTX = 200 # 256
 EMBED_DIM = 584
@@ -29,7 +29,7 @@ train_data = np.memmap(os.path.join('./data', 'train.bin'), dtype=np.uint16, mod
 val_data = np.memmap(os.path.join('./data', 'val.bin'), dtype=np.uint16, mode='r')
 encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
 decode = lambda l: enc.decode(l)
-torch.manual_seed(1337)
+# torch.manual_seed(1337)
 # --------------------------- # 
 
 def get_batch(split):
@@ -58,23 +58,6 @@ def estimate_loss(model):
 
 if __name__ == '__main__':
     
-    """
-
-    with open('test.txt', 'r', encoding='utf-8') as f:
-        text = f.read()
-
-    # set up encoding
-    encoding = enc.encode(text) 
-    vocab_size = len(set(encoding))
-
-    data = torch.tensor(encoding, dtype=torch.long, device=device)
-
-    n = int(0.9*len(data))
-    train_data = data[:n]
-    validation_data = data[n:]
-
-    """
-    
     start = 'hii there'
     start_ids = encode(start)
     x = (torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...])
@@ -83,18 +66,20 @@ if __name__ == '__main__':
     if 'load' not in sys.argv:
         m = Model()
         m.to(device)
+        checkpoint = 0
     else:
         iter = sys.argv[-1]
         m = torch.load(f'models/epoch{iter}.pth')
+        checkpoint = int(iter)
 
     print('Before: ')
     m.eval()
-    # print(decode( m.generate(x, max_new_tokens=1000)[0].tolist() ) )
+    print(decode( m.generate(x, max_new_tokens=200)[0].tolist() ) )
     m.train()
     
     # create torch optimizer
     optimizer = torch.optim.AdamW(m.parameters(), lr=3e-4)
-    for iter in range(MAX_ITERS):
+    for iter in range(checkpoint, MAX_ITERS):
 
         xb, yb = get_batch('train')
         # print(xb.shape, yb.shape)

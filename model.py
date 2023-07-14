@@ -11,10 +11,11 @@ from torch.nn import functional as F
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # device = "cpu"
 VOCAB_SIZE = 50257 # 51000
+LR = 6e-4 # 3e-4
+DROPOUT = 0.2
 HEADS = 8
 NX = 8
-LR = 3e-4
-DROPOUT = 0.2
+LR = 3e-4 # 6e-4
 BATCH_SIZE = 14 # 64
 CTX = 200 # 256
 EMBED_DIM = 584
