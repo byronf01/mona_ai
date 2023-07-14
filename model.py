@@ -9,14 +9,15 @@ from torch.nn import functional as F
 
 # -------- CONSTANTS -------- # 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
-VOCAB_SIZE = 51000
-HEADS = 4
-NX = 4
+# device = "cpu"
+VOCAB_SIZE = 50257 # 51000
+HEADS = 8
+NX = 8
 LR = 3e-4
 DROPOUT = 0.2
-BATCH_SIZE = 6
-CTX = 8
-EMBED_DIM = 32
+BATCH_SIZE = 14 # 64
+CTX = 200 # 256
+EMBED_DIM = 584
 # --------------------------- # 
 
 class PositionalEncoding(nn.Module):
@@ -72,6 +73,7 @@ class Model(nn.Module):
 
         # finally plug into language model head
         logits = self.lm_head(x) # B, T, vocab_size 
+        # print(logits)
 
         if targets is None: loss = None
         else:
@@ -81,9 +83,10 @@ class Model(nn.Module):
             logits = logits.view(batch_size * CTX, vocab_size)
             targets = targets.view(batch_size*CTX)
             loss = F.cross_entropy(logits, targets)
-
+        
         return (logits, loss)
     
+    @torch.no_grad()
     def generate(self, x, max_new_tokens):
         
         # x is (B, T) array of indices in the current context
