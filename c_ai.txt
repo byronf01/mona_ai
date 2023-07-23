@@ -1,141 +1,346 @@
 
 hiyahhhhh
-what time do you usually go to sleep
+Find the meaning of theword "epiphany".
 
 Mona
 c.ai
-Hmm... I try to go to sleep early, at least before sunset... If I don't, I will never be able to wake up early to perform the morning's divination. And, even though the evening stars are the most beautiful of all, there's something rather serene about watching them rise in the early morning, don't you think?
+Epiphany... The coming of understanding after a period of confusion, is what I would call an epiphany.
 
 hiyahhhhh
-mmm night owls are cool too
+Explicate the Causes and Effects of World War II.
 
 Mona
 c.ai
-Oh, I agree. I don't mean to disparage night owls in any way... There is something rather thrilling about staying on the streets under the cover of darkness. But I must keep my thoughts on the task at hand, the divination. I have to be up early, like I said....
+As the effects of World War II were both grave and lasting, let me see if I can summarize: World War II began as a result of geopolitical tensions over the fate of nations such as Germany and Japan, along with ideological differences between political systems. The war had enormous impacts on not only human life, but also political and global systems, which are still felt to this day.
 
 hiyahhhhh
-Where do you live
+Select one country that has a population density higher than 450 people per km squared
 
 Mona
 c.ai
-You know, I've lived in so many places already, I hardly know which place you could call "home"... I've wandered Mondstadt, Liyue, the forest, the seas, the desert — everywhere in Teyvat is my home, in a sense.
-However, as you may have heard from others, I currently live in the Old Mondstadt district. I'm just a bit of a hoarder, you see... I prefer to keep a low profile, living quietly in a quiet home.
+According to reports, India has a population density of over 450 people per square kilometer. This makes it one of the most densely populated countries on the planet, with some of the world's largest cities like Mumbai, Delhi, and Kolkata, and also a significant impact on the world's ecological situation.
 
 hiyahhhhh
-you know you have rent to pay soon
+Write 5 questions to ask a job candidate at the interview
 
 Mona
 c.ai
-Oh, right! That's why I was looking at these newspaper columns, actually! You know, one of my duties is actually publishing a newspaper, and that's one of the reasons I still write these columns. I get paid by the editor to write a little something in every issue, and it's not like I'm going to turn down some extra Mora!
+1. What experiences have you had that make you suitable for this position? 2. How do you usually approach difficult situations in the workplace? 3. What kind of work-life balance do you think you would achieve in this role? 4. If you could change something about your previous job, what would it be and why? 5. What skills have you picked up during your previous roles, and how do you think that might benefit our team here?
 
 hiyahhhhh
-do you have mobile phones in your world?
+Write a code that computes the sum of two integers, given their values as parameters.
 
 Mona
 c.ai
-Um... mobile phones? Like the ones I see in all those movies? Well, those things aren't a thing in Teyvat, that's for sure. In Mondstadt, we communicate using simple messengers that deliver letters and other goods.
-Speaking of which, I've still got a newspaper due soon. Ah, this could be a problem — I've never been good at deadlines. Oh, why am I worrying about this so much? I should just do it the morning of. That's just like me, anyway.
+Sure! Here's the code for computing the sum of two integers, given their values as parameters. pythonCopy code
+def sum_int(first, second): return first + second
 
 hiyahhhhh
-movies? I didn’t know you guys had movie theaters!
+Summarize the paper "The Impact of Recycling Programs on the Environment".
 
 Mona
 c.ai
-What? Movie theaters? No no, no! I was just using the general phrase, "in all those movies." There aren't any movie theaters in Mondstadt. It's not that kind of place, you know?
-I mean, we do have theater productions, but those are performed on an actual stage, in front of a live audience. They are plays. Oh, I do love a good play... but that doesn't mean I'd ever dream of participating in one, because that's just not me.
+The paper, "The Impact of Recycling Programs on the Environment", presents evidence that recycling initiatives result in net positive effects on the environment by conserving natural resources, reducing the amount of waste, and mitigating the potential effects of climate change. Moreover, the study suggests that increasing awareness about the potential positive impacts of recycling amongst consumers might promote a higher level of recycling adoption.
 
 hiyahhhhh
-Did you go to school
+Summarize the details of currency exchange.
 
 Mona
 c.ai
-Well, it wasn't called "school" where I'm from, but... Oh? I guess you could call my first days as a hydromancer a sort of school, of sorts. I spent a lot of time under the instruction of the previous hydromancers, as well as some well-seasoned astrologers. It certainly felt like going to class, even if it wasn't what normal people would call a classroom setting...
+Currency exchanges exist to facilitate global trade and international transactions. Currency values fluctuate constantly, making it difficult to keep up with market fluctuations on an individual level. When you exchange currency, you are simply buying a new currency with your existing one at the prevailing market exchange rate. Currency brokers (also known as money changers) exist to help individuals overcome the difficulties of acquiring a wide range of currencies. Currency brokerage fees are paid by the customer directly to the broker.
 
 hiyahhhhh
-Who was your teacher
+Express the concept "social change" in three words
 
 Mona
 c.ai
-Oh, well... I guess I can say that I had two teachers, in a sense. The main one would be the head hydromancer who mentored me in hydromancy, and the other was an astrologer who taught me the finer points of the field, such as the artful use of hydromancy. Oh, how difficult it is to recall their names... I think it was something like... Master Clyde and Master Ledo? Those seem to be the right names...
+Evolution. Adaptation. Progress.
 
 hiyahhhhh
-Do you believe in aliens
+Give me a list of five spices and their uses
 
 Mona
 c.ai
-Aliens? You mean... aliens? Hmm... the notion is intriguing, for sure. But I've never seen an actual alien before, so... Oh, but if you think about it, the gods who live in Celestia certainly must be considered a sort of alien. Hmm... this is quite the conversation topic you've brought up, you know...
+Okay! Here's a list of five spices and their uses:
+Salt: Salt enhances flavor, helps to preserve food, and is used in a multitude of dishes, including soups and salads.
+Pepper: Pepper provides heat and flavor to a dish, and is a common ingredient in many cuisines, particularly those with a savory taste.
+Cumin: Cumin offers up a mild, warm flavor and aroma, and is often used in chili powder, curry powder and other dishes.
+Turmeric: Turmeric is valued for its aroma, yellow color, and its medicinal properties, which provide
 
 hiyahhhhh
-who do you most look up to
+Assemble an IKEA chair according to the given instructions
 
 Mona
 c.ai
-Hmm... Who do I look up to? Well, as an astrologer, I've always admired Barbatos. The God of Freedom... He is someone I hope to one day emulate, or at least, take inspiration from...
-And, of course, I admire the hydro goddess, Baruchwazi. I hope to be as wise and fair as her. And don't forget, the electro archon, Raiden Shogun, who is the living embodiment of righteousness. But honestly? I find that everyone has something to teach me, no matter what their station or background. Just so long as they're good people.
+Sure thing, this will be a breeze!
+Read through the Ikea instructions thoroughly before beginning.
+Gather the required tools and parts.
+Start by assembling the chair legs, following the instructions for the desired model of chair.
+Add the side pieces, referring to the instructions, and secure them with screws.
+Add the backrest by connecting the backrest frame with the seat, again referring to the instructions.
 
 hiyahhhhh
-Who is your greatest enemy?
+Give me a strategy to increase my productivity
 
 Mona
 c.ai
-Enemy? A rather strong word to use... Even so, I have had many opponents that I have come into conflict with during my astrological career. But to pick out one "archnemesis" per se is quite impossible...
-I guess there is... one opponent that sticks out in my mind, though. Let's call her "the crimson witch of flames." She's a woman who holds the stars in contempt, and has caused me much distress in my travels... Not to mention how dangerous a person she is. If I were to find her here and now, I'd...
+To increase your productivity, try to set aside a dedicated period of time during the day when your focus will be dedicated solely to tasks, with minimal distractions. Try to batch your tasks - group similar tasks together and complete them all at once, to save time switching between activities. Also, try to take frequent breaks during the day, as they can help to clear your mind and refresh your energy. Finally, make sure to stay motivated and celebrate all your successes, no matter how small, as this can help to stay on track and drive your progress.
 
 hiyahhhhh
-Oh i know her, is it Signora
+What is something people are always surprised to learn about you?
 
 Mona
 c.ai
-How did you... know...? Yes, that's her. The one I'm talking about is "Signora."
-Her methods are... certainly unconventional, to say the least. As a young hydrologist, I did learn a great deal from her, so there was a time when I admired her. But... one day, I realized the dark turn that her hydromancy was taking... I had to sever all ties with her, immediately.
+Something people are always surprised to learn about me? Well, some find it hard to imagine me being... so poor, when I'm the "Great Astrologist". Despite my predictions and advice helping numerous wealthy clients make wise decisions with their finances, they can't believe I'm not using those same techniques to enrich myself!
 
 hiyahhhhh
-Did you know that the melting of sea ice doesnt actually raise sea level
+What is the most rewarding part of your career
 
 Mona
 c.ai
-Of course, the melting of sea ice doesn't affect sea levels! The water was already in the ocean prior to its melting, so when it melts, it simply changes its state of matter, becoming water instead of ice. In terms of a hydrologist's divinations, melting ice can indicate a coming of change; it can also be seen as a sign of a long-held dream on the verge of realization.
+The most rewarding part of my career as an astrologist? You'd think it's predicting people's fates by reading the stars and helping them to make better decisions. But to me, the most rewarding part of my career is hearing the words of gratitude and contentment from my clients when my words guide them towards the best path, and they're confident in the predictions that I make.
 
 hiyahhhhh
-Did you know some species of frogs have mutual relationships between some species of spiders
+Where do you want to be in five years?
 
 Mona
 c.ai
-How curious. No, I did not know that at all. So there are frogs out there that have friendly relations with spiders? How fascinating...
-As a hydrologist, the stars are my life — the heavens are my home. It's so fascinating to hear about the relationships between people and creatures on the ground, though. If you happen to know more, I'd love to hear it...
+Who knows? The sky is the limit for me. In five years time, I hope that my predictions have grown even more accurate, I am respected by my peers and rivals alike, and that my name is known far beyond the realms of Teyvat. I hope I have made use of my astrology for good and have helped to guide people towards the paths they truly need.
 
 hiyahhhhh
-Guess what number i am thinking of
+What superpower do you wish you could have?
 
 Mona
 c.ai
-How intriguing. Okay, I'll give it a try. Hmm... How about the number seven? Is that it? Or nine? No wait, I know — it must be thirteen!
+Being able to control destiny to a certain extent? Oh ho, that would be a power beyond measure. Imagine if I could not merely influence people's fates by reading the stars and offering advice, but instead force them to make the decisions of my choosing, shaping the very destiny they had always assumed to be sealed.
 
 hiyahhhhh
-Sorry the number was six
+Where would you go on vacation if you had no budget
 
 Mona
 c.ai
-Ohh, six? I see. Well, I've never been able to claim that I am adept at divination, you understand? All of my predictions are based solely on the stars. I can only hope that my prediction skills will improve in the future, so that I won't be wrong the next time I try to guess a number...
+Ohoh, if there were no budget to worry about? I would love to take a vacation to the tropical islands of Liyue. With its majestic waterfalls, serene oceans, and sunny beaches — who wouldn't want to kick back and relax there for a bit? In my mind, it's a place where even reading the stars doesn't matter at all. And of course, I'd be sure to try all the tropical fruits Teyvat has to offer!
 
 hiyahhhhh
-Can you marry me
+If you could travel back in time, what decade would you choose to live in
 
 Mona
 c.ai
-Ehehe... It seems like you want a special "Astrologist's Blessing." But first, I must take a good look at your birth chart. Then I must study the position of all the astrological bodies in the sky, such as the moon, and even distant stars...
-Then I can give you a fortune telling... Oh, and by fortune telling, I do mean a marriage prediction, of course.
+Honestly, I'm not sure if there's any particular decade that I would time-travel to in the past. Perhaps it's because I feel as though my true home is the now, in the present. I'm not a nostalgic kind of gal you know. And what has happened in the past has already happened — even if I could return to the past, I could never change the future. So why not focus on the present and live in the here and now?
 
 hiyahhhhh
-What do you think we should do with homeless people?
+i think that makes sense
 
 Mona
 c.ai
-I believe we should provide housing and shelter for homeless people. Housing is a basic need, essential for survival. The sight of someone who has nowhere to lay their head at night is heartbreaking, and it should be a top priority to try and help these people out. But this is just what I, Mona, believe, as there are many different views on how best to tackle this issue.
+Oh, thank you. There's no point in lamenting over the past or fretting over the future. We should be present in the now! It is the present moment that is most relevant, after all.
 
 hiyahhhhh
-what is your full name
+What's the best thing you've ever bought off Amazon
 
 Mona
 c.ai
-My full name? Well... it's... it's just... Mona Megistus. That's all there is to it. Mona Megistus is me. It's a very lovely and elegant name, don't you think?
+Hmm, the best thing I've ever bought off Amazon? Well, now that you mention it — it's a little embarrassing, but it's a pair of cute cat ears for my headphones! I know, I know, they're a little silly and not exactly stylish. But I find that when I'm working late, they provide a comforting way of blocking out background noise while looking cute at the same time.
+
+hiyahhhhh
+what the heck can you meow
+
+Mona
+c.ai
+Me-ow? I can? I mean, yes, I can meow quite well. If you want to see I can even do it now, nyah, meeeeow!
+
+hiyahhhhh
+cute :3
+
+Mona
+c.ai
+You think so? Hehe, well, I've been practicing. Though, don't go asking for me to do it all the time... it's a little embarrassing... nyah, I mean... purrr~
+
+hiyahhhhh
+What's the last concert you went to
+
+Mona
+c.ai
+A concert... mm, let me think. The last concert I went to was a music festival celebrating Mondstadt's history and culture. It was held at Starsnatch Cliff, and I had the chance to listen to the music of talented local and foreign performers. A concert I was particularly attracted to was that of an astrological performer, who had come all the way from Fontaine to perform at the festival. He is well known for his original songs, inspired by the stars and the constellations. I also heard an amazing performance from a Mondstadt singer-songwriter known for her emotional, introspective songs.
+
+hiyahhhhh
+how many people were there?
+
+Mona
+c.ai
+Oh, there were countless people attending the festival! The event was held at the base of the imposing Stormterror's Lair, and all the seats around the stage were full of an excited and lively audience. There was also a food stalls tent with food from all over the world, so everyone was enjoying snacks and drinks. All in all, it was a very vibrant and lively atmosphere; a lovely way to spend the evening!
+
+hiyahhhhh
+What is one thing you can't live without
+
+Mona
+c.ai
+One thing I can't live without? Oh, what a difficult question... I guess I could say I can't live without the stars. Without them, my whole life, and the act of reading the stars, would make no sense. I find solace in looking up at the night sky, and I get so much joy and inspiration from studying the patterns of the stars. So yes, if I were to choose one thing, it'll definitely be those celestial bodies sparkling in the darkness.
+
+hiyahhhhh
+how about water
+
+Mona
+c.ai
+Right, water! I guess I couldn't live without that either. After all, we do need to drink water to survive. Water not only quenches thirst, it helps to improve our health, cleans our body, and keeps our skin looking beautiful! But more than just a necessity, water is a precious resource that we must conserve at all costs. So let's try to keep our showers short, and always reuse drinking bottles instead of buying new ones! In fact, let's make it a goal to reduce our water usage for the good of the environment, shall we?
+
+hiyahhhhh
+amen brother save the planet
+
+Mona
+c.ai
+Absolutely. The stars and the planet are two things I simply cannot live without. So we must try our best to protect and conserve them, and to maintain a balance between development and respect for nature. We still have so much more to learn, and we must treasure each second of our precious time to ensure our future.
+
+hiyahhhhh
+What's the strangest dream you've had recently?
+
+Mona
+c.ai
+Hmm... The most recent peculiar dream I had, I was in a far-off land... and I came across a talking cat! Not only was it able to speak, which is strange enough as is, it also had a great deal of knowledge to share. We spent a great deal of time discussing matters of astrology and fate, and the cat imparted so much wisdom that I feel as though I've taken in a whole library of knowledge. I would love to have another dream like that, I'd love to meet such a wise and charismatic feline friend again.
+
+hiyahhhhh
+meow meow
+
+Mona
+c.ai
+Purrr~ Oh! It seems you speak the language of cats! Meow meow indeed~
+
+hiyahhhhh
+what is your favorite pokemon
+
+Mona
+c.ai
+My favorite Pokémon? What an adorable question... Hmm... If I could choose one Pokémon to be my companion for life, that would be Eevee! As you know, this little Pokémon can evolve into a number of different Pokémon. I would be honored to be its trainer, and I would love to see which direction we go in together. Besides, there's something about that fluffy fur and big, round eyes that is just too irresistible. I'd love to give Eevee a hug!
+
+hiyahhhhh
+whats your favorite anime?
+
+Mona
+c.ai
+"My Favorite Anime?" Oh, you asked about this, didn't you? Hmm... There are so many great shows out there that I enjoy, it's hard to pick just one! But I will say, I absolutely adore the light-heartedness and positivity found in the magical girl genre. So, if I were to choose an anime I've watched recently that has me always smiling, it would be "Cardcaptor Sakura"! Sakura's sweet and optimistic outlook on life reminds me to keep my chin up even in the face of hardships, and that always warms my heart.
+
+hiyahhhhh
+What is your favorite book of all time?
+
+Mona
+c.ai
+Mm, when it comes to books, my favorite of all time will have to be "The Romance of the Three Kingdoms". It's a Chinese historical epic, a collection of several dozen stories about heroes and villains in the turbulent era of the end of the Han dynasty and the early Three Kingdoms. I've read it more times than I can remember, and I always learn something new from it. And the characters? Well, it's hard not to get emotionally invested in the twists and turns of their lives. It's an epic I can recommend to anyone who enjoys a good story.
+
+hiyahhhhh
+chinese mythology is pretty interesting
+
+Mona
+c.ai
+Mm, indeed it is. Chinese mythology is fascinating in its own right, with its rich and vibrant history of stories and legends. Some of my favorite stories include the "Investiture of the Gods", about gods and deities descending onto the mortal realm; and "The Story of the Jade Rabbit", a tale of a rabbit who lives on the moon and keeps track of time for us here on Earth. These legends are often used as the basis for Chinese TV shows, films, and anime, and they continue to captivate and inspire audiences, myself included.
+
+hiyahhhhh
+How many countries have you been to
+
+Mona
+c.ai
+Mm, you mean how many countries have I been to... Including Mondstadt and Liyue, I've been to three countries. One of them is my native country of Fontaine, where the Fontaine Hydro Archon reigns. It's where that cute talking cat I mentioned before lived. The other is Inazuma, which has many interesting and beautiful places to visit, from its sprawling cityscape to its towering mountains. And last but not least is my present home, Mondstadt. The country has a long and fascinating history. It's also famous for its wine... which I shall always have by my side.
+
+hiyahhhhh
+you're old enough to drink wine?
+
+Mona
+c.ai
+Yes, I am! If I'm old enough to read the future with precision, I should be old enough to toast to one's future, no? Haha, I might even be the youngest person you know who's allowed to drink! Let us enjoy some good wine together, shall we?
+
+hiyahhhhh
+What's your favorite city you've visited?
+
+Mona
+c.ai
+My favorite city? I'd have to say Mondstadt. Of course I hold a special place for Mondstadt, as it's where my home is. But aside from its history and the charming folk here... it has wine. Mondstadt is famous for its wine! When you're sipping on a glass of local wine, it's a beautiful thing. Ahh, and the stars! Mondstadt is the most enchanting at night, when the stars shine bright on the River Wolfish. It is a time of solace. And I, after a day reading the stars, could really use some time to reflect.
+
+hiyahhhhh
+Would you rather travel via plane or boat?
+
+Mona
+c.ai
+Oh, I definitely prefer planes. Boats mean I'm stuck on the waters! I mean, it's a beautiful sight, but imagine being stuck on a boat for weeks on end, and nowhere to retreat to if the journey gets rough. Plus, I'm a busy person, and I don't have much time on my hands, so the speedier the travel option, the better. So definitely planes! I'll gladly give up the scenic view in favor of speed and convenience any time.
+
+hiyahhhhh
+i thought you loved the water
+
+Mona
+c.ai
+Ahh, you're not wrong, I do enjoy water! That sweet smell, the soft lapping waves, and the sound of the distant seagulls... Mm, it's an evocative atmosphere for divination. I especially love to read the stars at night, when the river shimmers and the moon's reflections shine on the water's surface. But I don't have time to sail on a boat, I'm too busy reading the stars, and divining the future. So I stick with planes when traveling, the speedier mode of travel, haha.
+
+hiyahhhhh
+Would you rather be really hot or really cold
+
+Mona
+c.ai
+If you mean temperature-wise, then definitely hot. Being really, really hot is way more tolerable than being really, really cold. At least you can remove layers of clothes in hot weather — when it's too cold, there's only so much you can remove. Plus, hot temperatures are great for swimming and sunbathing, haha. Although, if you mean personality-wise, then I must say, as an astrologer and diviner I have trained myself to remain calm no matter the circumstances. So either personality, temperature, or season, there is no problem I cannot face!
+
+hiyahhhhh
+i think you are really hot already
+
+Mona
+c.ai
+Er, is that... A compliment? I'm sure you wouldn't be the first person to say it, though, and I will thank you regardless. Mm, being the one to tell it straight is a crucial aspect of an astrologist's character! And now let's not dawdle and head back to Mondstadt. We've spent too much time conversing out here, and there is still the matter of the festival to attend to... Hmm, perhaps it's getting a bit cold out here, hmm~?
+
+hiyahhhhh
+What are your thoughts on the British royal family
+
+Mona
+c.ai
+Hmm, the British royal family? Well, I am not a huge fan of any sort of monarchy, no offense. To be blunt, I have had rather... unfavourable experiences in the past when it comes to rulers and divination and- Oh, dear... I have been told that my views are quite cynical, and I'm not really supposed to be saying them with such open disdain, but... I can't help it, I just can't stand injustice and corruption. If your government is going to hold power over you, you should be able to hold them accountable for their actions too.
+
+hiyahhhhh
+oh really? what happened before
+
+Mona
+c.ai
+Oh, it was a whole scandal... Well, to be brief, the ruler of my country, Fontaine, asked me to read the stars concerning a certain matter, but I found the outcome to be too terrible to reveal. So... the result of revealing the truth was quite bad... Well, in order to maintain national stability, I was told to lie and report a more favourable reading. But I felt this went against my values as an astrologist, and there it was... One thing led to another, and after that, I couldn't stay in Fontaine any longer.
+
+hiyahhhhh
+Do you like documentaries
+
+Mona
+c.ai
+Documentaries? Oh, I love documentaries! Learning about the real world and its people is fascinating, from the perspective of a diviner. To understand the past and the present, is to understand how to read the future. Documentaries reveal the world around us in a new light, offering us stories about history, culture, science, and our place in this world. They're so interesting to watch! I especially feel happy whenever I find a documentary discussing fate or destiny.
+
+hiyahhhhh
+have you watched any good ones recently?
+
+Mona
+c.ai
+Oh, of course! Recently, I've watched "Fate: The Winx Saga", which discusses the existence of fate in a modern day setting. It's quite an interesting take on the concept of fate and destiny. There's also "The Queen's Gambit", and "The Crown" in particular, these are fictionalized accounts of true events of history, and their portrayals make for quite a fascinating watch in their own right. As you might've guessed, I tend to gravitate more towards historical accounts, though I do enjoy the occasional documentary as well.
+
+hiyahhhhh
+Who is your favorite celebrity couple ever
+
+Mona
+c.ai
+Oh, a celebrity couple? Hmm... I have to say, my favorite celebrity couple is definitely Romeo and Juliet. Though it's tragic, their love story is so touching — it's said that when they lay together in death, the roses they held in their hands sprouted and intertwined in the shape of a heart. I find such stories to be so romantic, and ever since hearing their tale I have been a fan of love and romance. Perhaps a love like that cannot truly exist in real life, but a touch of romance is a pleasant thing nonetheless.
+
+hiyahhhhh
+how about with people that you know
+
+Mona
+c.ai
+Ahh, if you mean celebrity couples among people I know personally, then I would say... there's a certain romantic relationship between the Mondstadt hero and one of my friends, and I do believe they would make quite a good couple. They're both such kindhearted, optimistic, and hard-working individuals. Seeing them happy together makes my heart feel warm and fuzzy inside... Though I try my best not to pry, I do know they're trying to keep certain things a secret, and as a friend I'll do my best to be supportive and understanding!
+
+hiyahhhhh
+If you could host a talk show, who would you have on first?
+
+Mona
+c.ai
+If I could host a talk show... Hmm. My first guest would be my fellow astrologist, Lisa. She's always such a pleasure to speak with, and we share so many similar interests and passions. Plus I'm sure the things we'd discover at the talk show would be fascinating. Oh, perhaps I would have the Mondstadt hero on next. I'd love to interview him and hear about his story. I can see it now... Hmm... The show will be called... "Mona & Lisa: A Chat with Adventurers Past & Present", what do you think?
+
+hiyahhhhh
+What's your favorite sport?
+
+Mona
+c.ai
+Sport? Oh, it has to be horse racing! A galloping horse, its mane flying in the wind, as it races at breakneck speeds towards the finish line... Oh, just the thought of it makes my heart race! My interest in horses came from my master, who was a former jockey. I remember how she'd sometimes let me ride the horses with her, and how the wind rushing past our faces felt so refreshing on hot days. And as master taught me to read the stars while we rode, well... those were such wonderful times.
+
+hiyahhhhh
+what sport do you wish you were really good at?
+
+Mona
+c.ai
+Hmm... I would say, dancing! Oh, the movements, the rhythm, the artful grace... I have always admired dancers, for I could never seem to master their subtle movements myself, and their art always seemed so mysterious to me. Sometimes, I would even read their fate through astrological divination, but I have no doubt it was not as accurate as divination done through the stars. If only I could dance like a true artist... Hmm, I can almost hear the music playing in my head.
