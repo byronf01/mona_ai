@@ -114,8 +114,9 @@ def v2(debug: bool):
     # Preprocess and split clean data in cai.txt file 
     with open("cai.txt", 'rb') as f:
         text = f.read()
+    print(text)
     text = text.decode(encoding='utf-8')
-    m1 = r'([\r\n]*hiyahhhhh\r\n|[\r\n]*Mona\r\nc.ai\r\n)'
+    m1 = r'([\r]*[\n]*[\r]*[\n]*hiyahhhhh[\r]*[\n]*|[\r]*[\n]*[\r]*[\n]Mona[\r]*[\n]*c.ai[\r]*[\n]*)'
     data = [resp for resp in re.split(m1, text) if re.match(m1, resp) == None and resp != '']
 
     prompts_start = 0
@@ -129,7 +130,7 @@ def v2(debug: bool):
 
     # Check if data is valid
     if len(data) % 2: 
-        raise AssertionError('Unequal amount of prompts and responses')
+        raise AssertionError(f'Unequal amount of prompts and responses: {len(data)}')
     
     current_conversation = START_OF_CONVERSATION
     i = 0 # Iterator for all tokens
