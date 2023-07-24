@@ -50,7 +50,6 @@ class Model(nn.Module):
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, EMBED_DIM)
         self.position_embedding_table = PositionalEncoding(EMBED_DIM, DROPOUT, CTX).to(device)
-        self.encoder = nn.Sequential(*[Encoder() for _ in range(NX)])
         self.decoder = nn.Sequential(*[Decoder() for _ in range(NX)])
         self.ln_final = nn.LayerNorm(EMBED_DIM)
         self.lm_head = nn.Linear(EMBED_DIM, vocab_size)
@@ -58,18 +57,19 @@ class Model(nn.Module):
     def forward(self, x, targets=None):
         
         B, T = x.shape
+        # print(x.shape)
 
         # add embedding to tokens
         tok_enb = self.token_embedding_table(x) # B, T, C
+        # print(tok_enb.shape)
         pos_enb = self.position_embedding_table(torch.transpose(tok_enb, 0, 1).to(device)) # T, B, C
         x = torch.transpose(pos_enb, 1, 0).to(device) # B, T, C
 
-        # Feed into encoder
-        enc_out = self.encoder(x) # -> B, T, C
+        # print("Embedding")
+        # print(x.shape)
 
-        # ??? HOW TO FEED INTO CROSS-ATTENTION? 
-        # Feed into decoder with cross-attention
-        x = self.decoder((x, enc_out)) # does this tuple thing work? 
+        # Apply multi-headed self-attention
+        x = self.decoder(x) 
         x = self.ln_final(x)
 
         # finally plug into language model head
@@ -106,23 +106,6 @@ class Model(nn.Module):
             x = torch.cat((x, x_next), dim=1) # (B, T+1)
         return x
     
-class Encoder(nn.Module):
-    """
-    Encoder block feature multiheaded attention and feedforward
-    """
-    def __init__(self):
-        super().__init__()
-        divided_head_size = EMBED_DIM // HEADS
-        self.sa = MultiHeadAttention(divided_head_size, mask=False)
-        self.ffwd = FeedForward(EMBED_DIM)
-        self.ln1 = nn.LayerNorm(EMBED_DIM)
-        self.ln2 = nn.LayerNorm(EMBED_DIM)
-
-    def forward(self, x):
- 
-        x = self.sa(self.ln1(x)) + x
-        x = self.ffwd(self.ln2(x)) + x
-        return x
 
 class Decoder(nn.Module):
     """
@@ -133,35 +116,32 @@ class Decoder(nn.Module):
         # n_head: number of heads to use
         super().__init__()
         divided_head_size = EMBED_DIM // HEADS
-        self.sa = MultiHeadAttention(divided_head_size, mask=True)
-        self.ca = MultiHeadCrossAttention(divided_head_size)
+        self.sa = MaskedMultiHeadAttention(divided_head_size)
         self.ffwd = FeedForward(EMBED_DIM)
         self.ln1 = nn.LayerNorm(EMBED_DIM)
         self.ln2 = nn.LayerNorm(EMBED_DIM)
-        self.ln3 = nn.LayerNorm(EMBED_DIM)
 
-    def forward(self, x: tuple):
-        
-        x, enc_out = x
-        
-        # Masked self-attention
-        x = self.sa(self.ln1(x)) + x
+    def forward(self, x):
 
-        # Cross-attention
-        x = self.ca(self.ln2(x), enc_out) + x 
-        
+        # Communication with residual connection
+        layernorm = self.ln1(x) 
+        # print('Decoder')
+        # print(layernorm.shape)
+        x = self.sa(layernorm) + x
+        # print(x.shape)
+
         # Computation with residual connection
-        x = self.ffwd(self.ln3(x)) + x
+        x = self.ffwd(self.ln2(x)) + x
         # print(x.shape)
         return x
     
-class MultiHeadAttention(nn.Module):
+class MaskedMultiHeadAttention(nn.Module):
     """
     Multiple heads of self-attention in parallel
     """
-    def __init__(self, divided_head_size, mask=False):
+    def __init__(self, divided_head_size):
         super().__init__()
-        self.heads = nn.ModuleList([Head(divided_head_size, mask) for _ in range(HEADS)])
+        self.heads = nn.ModuleList([Head(divided_head_size) for _ in range(HEADS)])
         self.proj = nn.Linear(EMBED_DIM, EMBED_DIM)
         self.dropout = nn.Dropout(DROPOUT)
 
@@ -175,16 +155,15 @@ class MultiHeadAttention(nn.Module):
     
 class Head(nn.Module):
     """
-    One head of self-attention
+    One head of masked self-attention
     """
-    def __init__(self, head_size, mask=False):
+    def __init__(self, head_size):
         super().__init__()
         self.query = nn.Linear(EMBED_DIM, head_size, bias=False)
         self.key = nn.Linear(EMBED_DIM, head_size, bias=False)
         self.value = nn.Linear(EMBED_DIM, head_size, bias=False)
         self.register_buffer('tril', torch.tril(torch.ones(CTX, CTX).to(device)).to(device))
         self.dropout = nn.Dropout(DROPOUT)
-        self.mask = mask
 
     def forward(self, x):
         
@@ -192,6 +171,8 @@ class Head(nn.Module):
         # print('Head')
         # print(x.shape)
 
+        self.key(x)
+  
         key = self.key(x).to(device)        # (B,T,C)
         query = self.query(x).to(device)    # (B,T,C)
         # print(key.shape, query.shape)
@@ -203,69 +184,8 @@ class Head(nn.Module):
         weights = query @ key.transpose(-2, -1).to(device) * (C ** -0.5) # (B,T,C) @ (B,C,T) -> (B,T,T) 
         # print(weights.shape)
         # optional mask to ignore future tokens
-        if self.mask:
-            weights = weights.masked_fill(self.tril[:T, :T] == 0, float('-inf')).to(device) # (B,T,T)
+        weights = weights.masked_fill(self.tril[:T, :T] == 0, float('-inf')).to(device) # (B,T,T)
 
-        # take softmax to determine each token's importance relative to any abritrary token
-        weights = F.softmax(weights, dim=-1).to(device) # (B,T,T)
-        # print(weights.shape)
-        weights = self.dropout(weights)
-
-        # weighted aggregation of the values
-        v = self.value(x).to(device) # (B,T,C)
-        out = weights @ v # (B,T,T) @ (B,T,C) --> (B,T,C)
-        # print(out.shape)
-        return out
-    
-class MultiHeadCrossAttention(nn.Module):
-    """
-    Multiple heads of cross-attention in parallel
-    """
-    def __init__(self, divided_head_size):
-        super().__init__()
-        self.heads = nn.ModuleList([CaHead(divided_head_size) for _ in range(HEADS)])
-        self.proj = nn.Linear(EMBED_DIM, EMBED_DIM)
-        self.dropout = nn.Dropout(DROPOUT)
-
-    def forward(self, x, enc_out):
-
-        out = torch.concat([h.forward(x, enc_out) for h in self.heads], dim=-1)
-        # print(out.shape)
-        # Linear transformation of outcome 
-        out = self.dropout(self.proj(out))
-        return out
-    
-class CaHead(nn.Module):
-    """
-    One head of masked self-attention
-    """
-    def __init__(self, head_size):
-        super().__init__()
-        self.query = nn.Linear(EMBED_DIM, head_size, bias=False)
-        self.key = nn.Linear(EMBED_DIM, head_size, bias=False)
-        self.value = nn.Linear(EMBED_DIM, head_size, bias=False)
-        self.register_buffer('tril', torch.tril(torch.ones(CTX, CTX).to(device)).to(device))
-        self.dropout = nn.Dropout(DROPOUT)
-
-    def forward(self, x, enc_out):
-        
-        B, T, C = x.shape
-        # print('Head')
-        # print(x.shape)
-
-        # Queries from previous block
-        query = self.query(x).to(device)    # (B,T,C)
-
-        # Keys from encoder 
-        key = self.key(enc_out).to(device)  # (B,T,C)
-        
-        # compute attention scores (affinities)
-        # note scores divided by square root of channels to de-sharpen values for softmax later
-
-        # match query against every key
-        weights = query @ key.transpose(-2, -1).to(device) * (C ** -0.5) # (B,T,C) @ (B,C,T) -> (B,T,T) 
-        # print(weights.shape)
-       
         # take softmax to determine each token's importance relative to any abritrary token
         weights = F.softmax(weights, dim=-1).to(device) # (B,T,T)
         # print(weights.shape)
