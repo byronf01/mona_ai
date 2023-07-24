@@ -110,7 +110,9 @@ def v2(debug: bool):
     Requires text from character ai to be put into something like Google Docs and all the italicized text removed before copying into the 
     c_ai.txt file. (I'm really dumb)
     """
-    with open("c_ai.txt", 'rb') as f:
+
+    # Preprocess and split clean data in cai.txt file 
+    with open("cai.txt", 'rb') as f:
         text = f.read()
     text = text.decode(encoding='utf-8')
     m1 = r'([\r\n]*hiyahhhhh\r\n|[\r\n]*Mona\r\nc.ai\r\n)'
@@ -119,7 +121,8 @@ def v2(debug: bool):
     prompts_start = 0
     new_prompts = 0
 
-    with open('prompts.txt', 'rb') as f:
+    # Count current data
+    with open('data_convo.txt', 'rb') as f:
         contents = f.read()
         contents = contents.decode(encoding='utf-8')
     prompts_start = len(contents.split(END_OF_CONVERSATION)) - 1
@@ -154,7 +157,7 @@ def v2(debug: bool):
                 current_conversation = '\n' + current_conversation
                 print('FULL CONVERSATION: MAKE SURE TO SANITY CHECK !!!' + current_conversation)
                 current_conversation = current_conversation.encode(encoding='utf-8')
-                with open('prompts.txt', 'ab') as f:
+                with open('data_convo.txt', 'ab') as f:
                     
                     if not debug:
                         f.write(current_conversation)
@@ -176,9 +179,54 @@ def v2(debug: bool):
         print(f'NEW PROMPTS: \t{str(new_prompts)}')
         print(f'TOTAL PROMPTS: \t{str(prompts_start + new_prompts)}')
 
+def load_cai():
+    """
+    Load all the data in cai_raw.txt into cai.txt after processing
+    """
+
+    # Clean data in raw to remove any duplicate pairs -> it is a c.ai bug >:( 
+    with open("cai_raw.txt", 'rb') as f:
+        text = f.read()
+    text = text.decode(encoding='utf-8')
+    m1 = r'(\r\nhiyahhhhh\r\n|\r\n\r\nMona\r\nc.ai\r\n)'
+    data = [resp for resp in re.split(m1, text) if re.match(m1, resp) == None and resp != '']
+
+    prompts = set()
+    answers = set()
+
+    replace1 = []
+    replace2 = []
+
+    assert len(data) % 2 == 0
+    i = 0
+    while i < len(data):
+        prompt = data[i]
+        answer = data[i+1]
+        i += 2
+
+        if prompt not in prompts:
+            prompts.add(prompt)
+            replace1.append(prompt)
+        if answer not in answers:
+            answers.add(answer)
+            replace2.append(answer)
+
+    # Add new data to cai.txt for processing   
+    with open("cai.txt", "ab") as f:
+
+        for i, j in zip(replace1, replace2):
+            s1 = '\nhiyahhhhh\n' + i + '\n'
+            s2 = '\nMona\nc.ai\n' + j 
+            f.write(s1.encode(encoding='utf-8'))
+            f.write(s2.encode(encoding='utf-8'))
+
+    print(f'{len(replace1) + len(replace2)} lines of dialogue added ')
+
 if __name__ == '__main__':
     
     if 'debug' in sys.argv:
         v2(True)
+    elif 'load' in sys.argv:
+        load_cai()
     else: 
         v2(False)
