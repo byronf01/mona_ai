@@ -3,8 +3,10 @@
 """
 import re
 import sys
+import json
+# $ python -m http.server 5001 TO SERVE DATA.JSON
 
-# Constants mostly for reference
+
 START_OF_SENTENCE = '|<sos>|' # start of sentence, starts reading for answer
 PROMPT_START = '|<ps>|' # start of a prompt 
 PROMPT_END = '|<pe>|' # prompt end, stops reading for answer
@@ -222,7 +224,30 @@ def load_cai():
 
     print(f'{len(replace1) + len(replace2)} lines of dialogue added ')
 
+    load_json()
+
+def load_json():
+    """
+    Load data from data_convo.txt into data.json file 
+    """
+    data = []
+    with open("data_convo.txt", "rb") as f:
+        text = f.read()
+    text = text.decode(encoding='utf-8')
+    conversations = text.split('|<eoc>|')
+    conversations = [re.sub(r'[\\r]*[\\n]*\|<soc>\|', '', c) for c in conversations[:-1]]
+    for i, c in zip(range(len(conversations)), conversations):
+        prompts = re.findall(r'\|<ps>\|(.*?)\|<pe>\|', c)
+        answers = re.findall(r'\|<sos>\|((?:\r|\n|.)*?)\|<eos>\|', c)
+        assert len(prompts) == len(answers)
+        conversation_json = [{"prompt": p, "answer": a} for p, a in zip(prompts, answers)]
+        data.append({"id": i, "conversation": conversation_json})
+    
+    with open("data.json", "w") as f:
+        json.dump(data, f, indent=4)
+
 if __name__ == '__main__':
+    
     
     if 'debug' in sys.argv:
         v2(True)
