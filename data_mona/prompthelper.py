@@ -114,7 +114,6 @@ def v2(debug: bool):
     # Preprocess and split clean data in cai.txt file 
     with open("cai.txt", 'rb') as f:
         text = f.read()
-    print(text)
     text = text.decode(encoding='utf-8')
     m1 = r'([\r]*[\n]*[\r]*[\n]*hiyahhhhh[\r]*[\n]*|[\r]*[\n]*[\r]*[\n]Mona[\r]*[\n]*c.ai[\r]*[\n]*)'
     data = [resp for resp in re.split(m1, text) if re.match(m1, resp) == None and resp != '']
@@ -189,7 +188,7 @@ def load_cai():
     with open("cai_raw.txt", 'rb') as f:
         text = f.read()
     text = text.decode(encoding='utf-8')
-    m1 = r'(\r\nhiyahhhhh\r\n|\r\n\r\nMona\r\nc.ai\r\n)'
+    m1 = r'([\r]*[\n]*[\r]*[\n]*hiyahhhhh[\r]*[\n]*|[\r]*[\n]*[\r]*[\n]Mona[\r]*[\n]*c.ai[\r]*[\n]*)'
     data = [resp for resp in re.split(m1, text) if re.match(m1, resp) == None and resp != '']
 
     prompts = set()
@@ -217,7 +216,7 @@ def load_cai():
 
         for i, j in zip(replace1, replace2):
             s1 = '\nhiyahhhhh\n' + i + '\n'
-            s2 = '\nMona\nc.ai\n' + j 
+            s2 = '\nMona\nc.ai\n' + j + '\n'
             f.write(s1.encode(encoding='utf-8'))
             f.write(s2.encode(encoding='utf-8'))
 
