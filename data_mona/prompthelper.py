@@ -180,6 +180,7 @@ def v2(debug: bool):
         print(f'OLD PROMPTS: \t{str(prompts_start)}')
         print(f'NEW PROMPTS: \t{str(new_prompts)}')
         print(f'TOTAL PROMPTS: \t{str(prompts_start + new_prompts)}')
+        load_json()
 
 def load_cai():
     """
@@ -223,8 +224,6 @@ def load_cai():
             f.write(s2.encode(encoding='utf-8'))
 
     print(f'{len(replace1) + len(replace2)} lines of dialogue added ')
-
-    load_json()
 
 def load_json():
     """
