@@ -8,9 +8,10 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 # -------- CONSTANTS -------- # 
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
-# device = "cpu"
-VOCAB_SIZE = 50257 # 51000
+# device = "cuda:0" if torch.cuda.is_available() else "cpu"
+device = "cpu"
+VOCAB_SIZE = 50257 + 1 # 51000
+MASKING_TOKEN = 50257 
 LR = 6e-4 # 3e-4
 DROPOUT = 0.2
 HEADS = 8
@@ -191,6 +192,7 @@ class Head(nn.Module):
         B, T, C = x.shape
         # print('Head')
         # print(x.shape)
+        print(x)
 
         key = self.key(x).to(device)        # (B,T,C)
         query = self.query(x).to(device)    # (B,T,C)
