@@ -71,7 +71,8 @@ class Model(nn.Module):
         memory, _ = self.encoder((x, src_mask)) # -> B, T, C
 
         # Feed logits, padding mask and encoder outputs into decoder 
-        x, _, _ = self.decoder((x, memory, src_mask))  
+        predict = x # PREDICT SHOULD BE WHAT THE DECODER HAS PREDICTED SO FAR 
+        x, _, _ = self.decoder((predict, memory, src_mask))  
         x = self.ln_final(x)
 
         # finally plug into language model head
