@@ -90,7 +90,7 @@ class Model(nn.Module):
         return (logits, loss)
     
     @torch.no_grad()
-    def generate(self, x, src_mask, max_new_tokens):
+    def generate_fixed(self, x, src_mask, max_new_tokens):
         
         # x is (B, T) array of indices in the current context
         for _ in range(max_new_tokens):
@@ -351,5 +351,7 @@ if __name__ == '__main__':
     model2 = Model().to(device)
     logits, loss = model((test_batch, src_mask))
     # print(logits.shape)
-    wtf = model2.generate(test_batch, src_mask, 100)
-    res = [tensor.tolist() for tensor in wtf]
+    bruh = torch.tensor([idx]).to(device)
+    wtf = model2.generate_fixed(bruh, src_mask, 20)
+    whoa = wtf[0][200:]
+    print(enc.decode(whoa.tolist()))
