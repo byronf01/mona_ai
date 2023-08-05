@@ -12,7 +12,7 @@ import tiktoken
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # device = "cpu"
 VOCAB_SIZE = 50257 + 1 # 51000
-MASKING_TOKEN = 50257 
+PADDING = 50257 
 LR = 6e-4 # 3e-4
 DROPOUT = 0.2
 HEADS = 8
@@ -58,11 +58,11 @@ class Model(nn.Module):
         self.ln_final = nn.LayerNorm(EMBED_DIM)
         self.lm_head = nn.Linear(EMBED_DIM, vocab_size)
 
-    def forward(self, x, src_mask, targets=None):
+    def forward(self, x, src_mask, predict, targets=None):
         
         B, T = x.shape
 
-        # add embedding to tokens
+        # add embedding to input tokens
         tok_enb = self.token_embedding_table(x) # B, T, C
         pos_enb = self.position_embedding_table(torch.transpose(tok_enb, 0, 1).to(device)) # T, B, C
         x = torch.transpose(pos_enb, 1, 0).to(device) # B, T, C
@@ -70,8 +70,12 @@ class Model(nn.Module):
         # Feed logits and padding mask into encoder
         memory, _ = self.encoder((x, src_mask)) # -> B, T, C
 
-        # Feed logits, padding mask and encoder outputs into decoder 
-        predict = x # PREDICT SHOULD BE WHAT THE DECODER HAS PREDICTED SO FAR 
+        # add embedding to decoder tokens
+        tok_enb_predict = self.token_embedding_table(predict)
+        pos_enb_predict = self.position_embedding_table(torch.transpose(tok_enb_predict, 0, 1).to(device))
+        predict = torch.transpose(pos_enb_predict, 1, 0).to(device)
+
+        # Feed predicted tokens, padding mask and encoder outputs into decoder 
         x, _, _ = self.decoder((predict, memory, src_mask))  
         x = self.ln_final(x)
 
@@ -314,14 +318,15 @@ if __name__ == '__main__':
     train_example = "What is the worst customer service experience you have ever had? "
     train_example += '<|endoftext|>'
     idx = enc.encode(train_example, allowed_special={"<|endoftext|>"})
-    idx += [50257 for _ in range(CTX - len(idx))]
+    idx += [PADDING for _ in range(CTX - len(idx))]
     
     # Make B x T tensor
     test_batch = torch.tensor([idx for i in range(BATCH_SIZE)]).to(device)
 
     # Make the mask based on padding in tensor
-    src_mask = torch.tensor([[0 if token == 50257 else 1 for token in tensor] for tensor in test_batch])
+    src_mask = torch.tensor([[0 if token == PADDING else 1 for token in tensor] for tensor in test_batch])
 
+    """
     class TestEncoder(nn.Module):
 
         def __init__(self):
@@ -347,12 +352,28 @@ if __name__ == '__main__':
 
     model = TestEncoder().to(device)
     logits, mask = model((test_batch, src_mask))
-    # print(logits.shape)
+    print(logits.shape)
+
+    """
 
     model2 = Model().to(device)
-    logits, loss = model((test_batch, src_mask))
-    # print(logits.shape)
-    bruh = torch.tensor([idx]).to(device)
-    wtf = model2.generate_fixed(bruh, src_mask, 20)
-    whoa = wtf[0][200:]
-    print(enc.decode(whoa.tolist()))
+    
+    output_example = "My worst customer experience? My worst customer experience would have to be the time an old man came in and started demanding to use a bathroom. "
+    output_example += '<|endoftext|>'
+    outputs = enc.encode(output_example, allowed_special={'<|endoftext|>'})
+    outputs += [PADDING for _ in range(CTX - len(outputs))]
+    output_tensor = torch.tensor([outputs for _ in range(BATCH_SIZE)]).to(device)
+
+    for i in range(CTX - 1): 
+        time_step = torch.cat((output_tensor[:, :i], torch.tensor([[PADDING for _ in range(CTX - i)] for _ in range(BATCH_SIZE)], device=device)), dim=1)
+        correct_loss =  
+        logits, loss = model2(test_batch, src_mask, time_step, targets=None)
+        print(loss)
+
+    """
+    cropped = logits[:, -1, :] 
+    probs = F.softmax(cropped, dim=-1) # (B, C)
+    x_next = torch.multinomial(probs, num_samples=1).to(device) # (B, 1)
+    print(x_next)
+    """
+    
