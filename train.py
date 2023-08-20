@@ -45,16 +45,25 @@ def get_batch(split):
 
 def get_unsupervised_batch(split):
     """
-    Generates batch data with 5 units of padding at the end
+    Generates batch data with 0-25 units of padding 
     """
     data = train_data if split == 'train' else val_data
     ix = torch.randint(len(data) - CTX, (BATCH_SIZE,), device=device)
-    x = torch.stack([torch.tensor(list(data[i:i+CTX-5]) + [PADDING for _ in range(5)], dtype=torch.int64) for i in ix]).to(device)
-    y = torch.stack([torch.tensor(list(data[i+1:i+1+CTX-5]) + [PADDING for _ in range(5)], dtype=torch.int64) for i in ix]).to(device)
+    seed = np.random.randint(0, 26)
+    x = torch.stack([torch.tensor([PADDING for _ in range(seed)] + list(data[i:i+CTX-seed]), dtype=torch.int64) for i in ix]).to(device)
+    y = torch.stack([torch.tensor([PADDING for _ in range(seed)] + list(data[i+1:i+1+CTX-seed]), dtype=torch.int64) for i in ix]).to(device)
     return x, y
 
-def get_src_mask(idx):
+def get_mask(idx):
     return torch.tensor([[1 if token != PADDING else 0 for token in tensor] for tensor in idx])
+
+def calculate_loss(logits, targets):
+
+    B, T, C = logits.shape
+    logits = logits.view(B * T, C)
+    targets = targets.view(B * T)
+    loss = F.cross_entropy(logits, targets)
+    return loss
 
 @torch.no_grad()
 def estimate_loss(model):
@@ -63,9 +72,11 @@ def estimate_loss(model):
     for split in ('train', 'val'):
         losses = torch.zeros(EVAL_ITERS, device=device)
         for k in range(EVAL_ITERS):
-            x, y = get_batch(split)
-            src_mask = get_src_mask(x)
-            logits, loss = model(x, src_mask, targets=y)
+            source, targets = get_unsupervised_batch(split)
+            src_mask = get_mask(source)
+            pe_mask = get_mask(targets)
+            logits = model(source, src_mask, targets, pe_mask)
+            loss = calculate_loss(logits, targets)
             losses[k] = loss.item()
         out[split] = losses.mean()
     model.train()
@@ -73,10 +84,12 @@ def estimate_loss(model):
 
 if __name__ == '__main__':
     
+
     start = "What's the strangest thing you've ever done"
     start_ids = encode(start)
-    x = (torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...])
-    start_mask = get_src_mask(x)
+    while len(start_ids) < CTX: start_ids = [PADDING] + start_ids
+    x = torch.tensor([start_ids for _ in range(1)], dtype=torch.long, device=device)
+    start_mask = get_mask(x)
 
     # Setting up the model
     if 'load' not in sys.argv:
@@ -87,20 +100,24 @@ if __name__ == '__main__':
         iter = sys.argv[-1]
         m = torch.load(f'models/epoch{iter}.pth')
         checkpoint = int(iter)
-
+    """
     print('Before: ')
     m.eval()
-    print(decode( m.generate_fixed(x, start_mask, max_new_tokens=100)[0].tolist() ) )
+    print(decode( m.generate(x, start_mask)) )
     m.train()
-    
+    """
     # create torch optimizer
     optimizer = torch.optim.AdamW(m.parameters(), lr=3e-4)
     for iter in range(checkpoint, MAX_ITERS):
 
-        xb, yb = get_unsupervised_batch('train')
-        src_mask = get_src_mask(xb)
-        logits, loss = m(xb, src_mask, yb)
+        source, targets = get_unsupervised_batch('train')
+        src_mask = get_mask(source)
+        pe_mask = get_mask(targets)
+        logits = m(source, src_mask, targets, pe_mask)
         optimizer.zero_grad(set_to_none=True)
+
+        loss = calculate_loss(logits, targets)
+
         loss.backward()
         optimizer.step()
 

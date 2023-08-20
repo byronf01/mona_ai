@@ -13,6 +13,7 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # device = "cpu"
 VOCAB_SIZE = 50257 + 1 # 51000
 PADDING = 50257 
+# START_TOKEN = 50258
 LR = 6e-4 # 3e-4
 DROPOUT = 0.2
 HEADS = 8
@@ -58,7 +59,7 @@ class Model(nn.Module):
         self.ln_final = nn.LayerNorm(EMBED_DIM)
         self.lm_head = nn.Linear(EMBED_DIM, vocab_size)
 
-    def forward(self, x, src_mask, predict, targets=None):
+    def forward(self, x, src_mask, predict, pe_mask):
         
         B, T = x.shape
 
@@ -76,33 +77,60 @@ class Model(nn.Module):
         predict = torch.transpose(pos_enb_predict, 1, 0).to(device)
 
         # Feed predicted tokens, padding mask and encoder outputs into decoder 
-        x, _, _ = self.decoder((predict, memory, src_mask))  
+        x, _, _ = self.decoder((predict, memory, src_mask, pe_mask))  
         x = self.ln_final(x)
 
         # finally plug into language model head
         logits = self.lm_head(x) # B, T, vocab_size 
         # print(logits)
 
-        if targets is None: loss = None
-        else:
-            # must convert tensor size for logits/targets for each token in vocab to have 
-            # activation value between 0 and 1
-            batch_size, CTX, vocab_size = logits.shape
-            logits = logits.view(batch_size * CTX, vocab_size)
-            targets = targets.view(batch_size*CTX)
-            loss = F.cross_entropy(logits, targets)
-        
-        return (logits, loss)
+        return logits
     
     @torch.no_grad()
-    def generate_fixed(self, x, src_mask, max_new_tokens):
+    def generate(self, x, src_mask):
+        """
+        Generates output from the model. Stops generating when end of text token generates.
+        x: 1 x N tensor
+        """
         
+        output = []
+        predict = torch.tensor([[PADDING for _ in range(CTX)] for _ in range(1)]).to(device)
+        end = False
+        failsafe = CTX + 50
+
+        while True:
+            
+            # Make mask for decoder outputs 
+            pe_mask = torch.tensor([[0 if token == PADDING else 1 for token in tensor] for tensor in predict]).to(device)
+
+            # One step in model
+            logits = self(x, src_mask, predict, pe_mask)
+
+            probs = F.softmax(logits[:, -1, :], dim=-1)
+
+            x_next = torch.multinomial(probs, num_samples=1).to(device)
+
+            if x_next[0][0] == enc.encode('<|endoftext|>', allowed_special={'<|endoftext|>'})[0]:
+                end = True
+
+            # Move newly generated token to predicted sequence
+            predict = torch.cat((predict, x_next), dim=1)
+            predict = predict[:,-CTX:]
+            output.append(x_next)
+
+            if end: break
+
+            if failsafe > 0: failsafe -= 1
+            else: break
+
+        return output
+
         # x is (B, T) array of indices in the current context
         for _ in range(max_new_tokens):
             # crop x to last CTX tokens to prevent too much
             x_crop = x[:,-CTX:]
             # get the predictions, ignore loss
-            logits, _ = self(x_crop, src_mask)
+            logits = self(x_crop, src_mask)
             # focus only on the last element in time dimension
             logits = logits[:, -1, :] # becomes (B, C)
             # apply softmax to get probabilities
@@ -152,9 +180,9 @@ class Decoder(nn.Module):
 
     def forward(self, x: tuple):
         
-        idx, memory, mask = x
+        idx, memory, src_mask, pe_mask = x
         # Masked self-attention
-        idx = self.sa((self.ln1(idx), mask)) + idx
+        idx = self.sa((self.ln1(idx), src_mask)) + idx
 
         # Cross-attention
         idx = self.ca(self.ln2(idx), memory) + idx 
@@ -162,7 +190,8 @@ class Decoder(nn.Module):
         # Computation with residual connection
         idx = self.ffwd(self.ln3(idx)) + idx
         
-        return (idx, memory, mask)
+        # Return masks as well since this goes through multiple heads
+        return (idx, memory, src_mask, pe_mask)
     
 class MultiHeadAttention(nn.Module):
     """
@@ -320,11 +349,11 @@ if __name__ == '__main__':
     idx = enc.encode(train_example, allowed_special={"<|endoftext|>"})
     idx += [PADDING for _ in range(CTX - len(idx))]
     
-    # Make B x T tensor
+    # Make 1 x T tensor (only 1 example for testing)
     test_batch = torch.tensor([idx for i in range(BATCH_SIZE)]).to(device)
 
     # Make the mask based on padding in tensor
-    src_mask = torch.tensor([[0 if token == PADDING else 1 for token in tensor] for tensor in test_batch])
+    src_mask = torch.tensor([[0 if token == PADDING else 1 for token in tensor] for tensor in test_batch]).to(device)
 
     """
     class TestEncoder(nn.Module):
@@ -358,22 +387,38 @@ if __name__ == '__main__':
 
     model2 = Model().to(device)
     
-    output_example = "My worst customer experience? My worst customer experience would have to be the time an old man came in and started demanding to use a bathroom. "
-    output_example += '<|endoftext|>'
-    outputs = enc.encode(output_example, allowed_special={'<|endoftext|>'})
-    outputs += [PADDING for _ in range(CTX - len(outputs))]
-    output_tensor = torch.tensor([outputs for _ in range(BATCH_SIZE)]).to(device)
+    correct_output_example = "My worst customer experience? My worst customer experience would have to be the time an old man came in and started demanding to use a bathroom. "
+    correct_output_example += '<|endoftext|>'
+    correct_outputs = enc.encode(correct_output_example, allowed_special={'<|endoftext|>'})
+    decoder_inputs = [START_TOKEN] + correct_outputs + [PADDING for _ in range(CTX - len(correct_outputs) - 1)]
+    correct_outputs += [PADDING for _ in range(CTX - len(correct_outputs))]
+    outputs = torch.tensor([decoder_inputs for _ in range(BATCH_SIZE)]).to(device)
+    targets = torch.tensor([correct_outputs for _ in range(BATCH_SIZE)]).to(device) 
+    pe_mask = torch.tensor([[0 if token == PADDING else 1 for token in tensor] for tensor in outputs]).to(device) 
 
-    for i in range(CTX - 1): 
-        time_step = torch.cat((output_tensor[:, :i], torch.tensor([[PADDING for _ in range(CTX - i)] for _ in range(BATCH_SIZE)], device=device)), dim=1)
-        correct_loss =  
-        logits, loss = model2(test_batch, src_mask, time_step, targets=None)
-        print(loss)
+    print(outputs.shape, targets.shape, pe_mask.shape)
 
-    """
+    visualization = ""
+    
+    logits = model2(test_batch, src_mask, targets, pe_mask) 
+
+    # Textualization of logits
     cropped = logits[:, -1, :] 
     probs = F.softmax(cropped, dim=-1) # (B, C)
     x_next = torch.multinomial(probs, num_samples=1).to(device) # (B, 1)
-    print(x_next)
-    """
-    
+    visualization += enc.decode(x_next.tolist()[0])
+    print(visualization)
+
+    # Loss calculation  
+    batch_size, CTX, vocab_size = logits.shape
+    logits = logits.view(batch_size * CTX, vocab_size)
+    targets = targets.view(batch_size*CTX)
+    loss = F.cross_entropy(logits, targets)
+
+    print(loss)    
+
+    # Generating from the model
+    eval_batch = torch.tensor([idx for _ in range(1)]).to(device)
+    eval_mask = torch.tensor([[0 if token == PADDING else 1 for token in tensor] for tensor in eval_batch]).to(device)
+    thing = model2.generate(eval_batch, eval_mask)
+    print(enc.decode(thing)[-1])
