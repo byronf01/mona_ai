@@ -13,15 +13,15 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # device = "cpu"
 VOCAB_SIZE = 50257 + 1 # 51000
 PADDING = 50257 
-# START_TOKEN = 50258
+START_TOKEN = 50258
 LR = 6e-4 # 3e-4
 DROPOUT = 0.2
 HEADS = 8
 NX = 8
 LR = 3e-4 # 6e-4
-BATCH_SIZE = 14 # 64
-CTX = 200 # 256
-EMBED_DIM = 584
+BATCH_SIZE = 6 # 64
+CTX = 52 # 256
+EMBED_DIM = 96 # 584
 enc = tiktoken.get_encoding("gpt2")
 # --------------------------- # 
 
@@ -50,7 +50,6 @@ class Model(nn.Module):
 
     def __init__(self, vocab_size=VOCAB_SIZE):
         super().__init__()
-        # print(vocab_size)
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, EMBED_DIM)
         self.position_embedding_table = PositionalEncoding(EMBED_DIM, DROPOUT, CTX).to(device)
@@ -59,9 +58,7 @@ class Model(nn.Module):
         self.ln_final = nn.LayerNorm(EMBED_DIM)
         self.lm_head = nn.Linear(EMBED_DIM, vocab_size)
 
-    def forward(self, x, src_mask, predict, pe_mask):
-        
-        B, T = x.shape
+    def forward(self, x, src_mask, predict, pred_mask) -> torch.tensor: 
 
         # add embedding to input tokens
         tok_enb = self.token_embedding_table(x) # B, T, C
@@ -77,17 +74,16 @@ class Model(nn.Module):
         predict = torch.transpose(pos_enb_predict, 1, 0).to(device)
 
         # Feed predicted tokens, padding mask and encoder outputs into decoder 
-        x, _, _ = self.decoder((predict, memory, src_mask, pe_mask))  
+        x, _, _, _ = self.decoder((predict, memory, src_mask, pred_mask))  
         x = self.ln_final(x)
 
         # finally plug into language model head
         logits = self.lm_head(x) # B, T, vocab_size 
-        # print(logits)
 
         return logits
     
     @torch.no_grad()
-    def generate(self, x, src_mask):
+    def generate(self, x, src_mask) -> [int]:
         """
         Generates output from the model. Stops generating when end of text token generates.
         x: 1 x N tensor
@@ -101,10 +97,10 @@ class Model(nn.Module):
         while True:
             
             # Make mask for decoder outputs 
-            pe_mask = torch.tensor([[0 if token == PADDING else 1 for token in tensor] for tensor in predict]).to(device)
+            pred_mask = torch.tensor([[0 if token == PADDING else 1 for token in tensor] for tensor in predict]).to(device)
 
             # One step in model
-            logits = self(x, src_mask, predict, pe_mask)
+            logits = self(x, src_mask, predict, pred_mask)
 
             probs = F.softmax(logits[:, -1, :], dim=-1)
 
@@ -116,7 +112,7 @@ class Model(nn.Module):
             # Move newly generated token to predicted sequence
             predict = torch.cat((predict, x_next), dim=1)
             predict = predict[:,-CTX:]
-            output.append(x_next)
+            output += x_next.tolist()[0]
 
             if end: break
 
@@ -124,22 +120,6 @@ class Model(nn.Module):
             else: break
 
         return output
-
-        # x is (B, T) array of indices in the current context
-        for _ in range(max_new_tokens):
-            # crop x to last CTX tokens to prevent too much
-            x_crop = x[:,-CTX:]
-            # get the predictions, ignore loss
-            logits = self(x_crop, src_mask)
-            # focus only on the last element in time dimension
-            logits = logits[:, -1, :] # becomes (B, C)
-            # apply softmax to get probabilities
-            probs = F.softmax(logits, dim=-1) # (B, C)
-            # sample from the distribution
-            x_next = torch.multinomial(probs, num_samples=1).to(device) # (B, 1)
-            # append sampled index to the running sequence
-            x = torch.cat((x, x_next), dim=1) # (B, T+1)
-        return x
     
 class Encoder(nn.Module):
     """
@@ -180,18 +160,18 @@ class Decoder(nn.Module):
 
     def forward(self, x: tuple):
         
-        idx, memory, src_mask, pe_mask = x
+        idx, memory, src_mask, pred_mask = x
         # Masked self-attention
-        idx = self.sa((self.ln1(idx), src_mask)) + idx
+        idx = self.sa((self.ln1(idx), pred_mask)) + idx
 
         # Cross-attention
-        idx = self.ca(self.ln2(idx), memory) + idx 
+        idx = self.ca(self.ln2(idx), memory, src_mask, pred_mask) + idx 
         
         # Computation with residual connection
         idx = self.ffwd(self.ln3(idx)) + idx
         
         # Return masks as well since this goes through multiple heads
-        return (idx, memory, src_mask, pe_mask)
+        return (idx, memory, src_mask, pred_mask)
     
 class MultiHeadAttention(nn.Module):
     """
@@ -210,7 +190,7 @@ class MultiHeadAttention(nn.Module):
         # print(idx.shape)
 
         out = torch.concat([h((idx, mask)) for h in self.heads], dim=-1)
-        # print(out.shape)
+        # print("Outcome: ", out.shape)
         # Linear transformation of outcome 
         out = self.dropout(self.proj(out))
         return out
@@ -234,23 +214,22 @@ class Head(nn.Module):
         mask = x[1]
       
         B, T, C = idx.shape
-        # print('Head')
-        # print(x.shape)
 
         key = self.key(idx).to(device)        # (B,T,C)
         query = self.query(idx).to(device)    # (B,T,C)
+
+        # mask to ignore padding tokens
+        mask_extend = mask[:, :T, None] 
+        # print(key)
+        key = key.masked_fill(mask_extend == 0, 0).to(device)
+        query = query.masked_fill(mask_extend == 0, 0).to(device)   
 
         # compute attention scores (affinities)
         # note scores divided by square root of channels to de-sharpen values for softmax later
 
         # match query against every key
         weights = query @ key.transpose(-2, -1).to(device) * (C ** -0.5) # (B,T,C) @ (B,C,T) -> (B,T,T) 
-        
-        # mask to ignore padding
-        """
-        ARGH !!!!!!!!!
-        weights = weights.masked_fill(mask[:B, :T] == 0, float('-inf')).to(device)
-        """
+
         # optional mask to ignore future tokens
         if self.mask:
             weights = weights.masked_fill(self.tril[:T, :T] == 0, float('-inf')).to(device) # (B,T,T)
@@ -263,7 +242,6 @@ class Head(nn.Module):
         # weighted aggregation of the values
         v = self.value(idx).to(device) # (B,T,C)
         out = weights @ v # (B,T,T) @ (B,T,C) --> (B,T,C)
-        # print(out.shape)
         return out
     
 class CrossAttention(nn.Module):
@@ -276,7 +254,7 @@ class CrossAttention(nn.Module):
         self.proj = nn.Linear(EMBED_DIM, EMBED_DIM)
         self.dropout = nn.Dropout(DROPOUT)
 
-    def forward(self, x, memory):
+    def forward(self, x, memory, src_mask, pred_mask):
 
         out = torch.concat([h.forward(x, memory) for h in self.heads], dim=-1)
     
@@ -394,13 +372,13 @@ if __name__ == '__main__':
     correct_outputs += [PADDING for _ in range(CTX - len(correct_outputs))]
     outputs = torch.tensor([decoder_inputs for _ in range(BATCH_SIZE)]).to(device)
     targets = torch.tensor([correct_outputs for _ in range(BATCH_SIZE)]).to(device) 
-    pe_mask = torch.tensor([[0 if token == PADDING else 1 for token in tensor] for tensor in outputs]).to(device) 
+    pred_mask = torch.tensor([[0 if token == PADDING else 1 for token in tensor] for tensor in outputs]).to(device) 
 
-    print(outputs.shape, targets.shape, pe_mask.shape)
+    print(outputs.shape, targets.shape, pred_mask.shape)
 
     visualization = ""
     
-    logits = model2(test_batch, src_mask, targets, pe_mask) 
+    logits = model2(test_batch, src_mask, targets, pred_mask) 
 
     # Textualization of logits
     cropped = logits[:, -1, :] 

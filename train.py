@@ -15,21 +15,22 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # device = "cpu"
 enc = tiktoken.get_encoding("gpt2")
 MAX_ITERS = 500000
-EVAL_INTERVAL = 5000
-SAVE_INTERVAL = 2000
+EVAL_INTERVAL = 100
+SAVE_INTERVAL = 500
 EVAL_ITERS = 150
 DROPOUT = 0.2
 HEADS = 8
 NX = 8
 LR = 3e-4 # 6e-4
-BATCH_SIZE = 8 # 64
-CTX = 200 # 256
-EMBED_DIM = 584
+BATCH_SIZE = 6 # 64
+CTX = 52 # 256
+EMBED_DIM = 96 # 584
 train_data = np.memmap(os.path.join('./data', 'train.bin'), dtype=np.uint16, mode='r')
 val_data = np.memmap(os.path.join('./data', 'val.bin'), dtype=np.uint16, mode='r')
 encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
 decode = lambda l: enc.decode(l)
 PADDING = 50257
+START_TOKEN = 50258
 # torch.manual_seed(1337)
 # --------------------------- # 
 
@@ -45,25 +46,32 @@ def get_batch(split):
 
 def get_unsupervised_batch(split):
     """
-    Generates batch data with 0-25 units of padding 
+    Generates batch data with 1-25 units of padding 
     """
     data = train_data if split == 'train' else val_data
     ix = torch.randint(len(data) - CTX, (BATCH_SIZE,), device=device)
-    seed = np.random.randint(0, 26)
-    x = torch.stack([torch.tensor([PADDING for _ in range(seed)] + list(data[i:i+CTX-seed]), dtype=torch.int64) for i in ix]).to(device)
-    y = torch.stack([torch.tensor([PADDING for _ in range(seed)] + list(data[i+1:i+1+CTX-seed]), dtype=torch.int64) for i in ix]).to(device)
-    return x, y
+    seed = np.random.randint(1, 26)
+    source = torch.stack([torch.tensor([PADDING for _ in range(seed)] + list(data[i:i+CTX-seed]), dtype=torch.int64) for i in ix]).to(device)
+    predicted = torch.stack([torch.tensor([PADDING for _ in range(seed-1)] + [START_TOKEN] + list(data[i:i+CTX-seed]), dtype=torch.int64) for i in ix]).to(device)
+    targets = torch.stack([torch.tensor([PADDING for _ in range(seed-1)] + list(data[i:i+1+CTX-seed]), dtype=torch.int64) for i in ix]).to(device)
+    return source, predicted, targets
 
 def get_mask(idx):
-    return torch.tensor([[1 if token != PADDING else 0 for token in tensor] for tensor in idx])
+    return torch.tensor([[1 if token != PADDING else 0 for token in tensor] for tensor in idx]).to(device)
 
-def calculate_loss(logits, targets):
+def calculate_loss(logits, targets, padding_mask):
 
     B, T, C = logits.shape
+
+    # Apply mask to logits and targets based on padding tokens in targets
+
+    
+    # Cross entropy calculation
     logits = logits.view(B * T, C)
     targets = targets.view(B * T)
     loss = F.cross_entropy(logits, targets)
     return loss
+    
 
 @torch.no_grad()
 def estimate_loss(model):
@@ -74,8 +82,8 @@ def estimate_loss(model):
         for k in range(EVAL_ITERS):
             source, targets = get_unsupervised_batch(split)
             src_mask = get_mask(source)
-            pe_mask = get_mask(targets)
-            logits = model(source, src_mask, targets, pe_mask)
+            pred_mask = get_mask(targets)
+            logits = model(source, src_mask, targets, pred_mask)
             loss = calculate_loss(logits, targets)
             losses[k] = loss.item()
         out[split] = losses.mean()
@@ -84,7 +92,6 @@ def estimate_loss(model):
 
 if __name__ == '__main__':
     
-
     start = "What's the strangest thing you've ever done"
     start_ids = encode(start)
     while len(start_ids) < CTX: start_ids = [PADDING] + start_ids
@@ -100,23 +107,25 @@ if __name__ == '__main__':
         iter = sys.argv[-1]
         m = torch.load(f'models/epoch{iter}.pth')
         checkpoint = int(iter)
-    """
+    
     print('Before: ')
     m.eval()
-    print(decode( m.generate(x, start_mask)) )
+    out = m.generate(x, start_mask)
+    out = [0 if token == PADDING else token for token in out]
+    print(decode( out ))
     m.train()
-    """
+   
     # create torch optimizer
-    optimizer = torch.optim.AdamW(m.parameters(), lr=3e-4)
+    optimizer = torch.optim.AdamW(m.parameters(), lr=LR)
     for iter in range(checkpoint, MAX_ITERS):
 
         source, targets = get_unsupervised_batch('train')
         src_mask = get_mask(source)
-        pe_mask = get_mask(targets)
-        logits = m(source, src_mask, targets, pe_mask)
+        pred_mask = get_mask(targets)
+        logits = m(source, src_mask, targets, pred_mask)
         optimizer.zero_grad(set_to_none=True)
 
-        loss = calculate_loss(logits, targets)
+        loss = calculate_loss(logits, targets, pred_mask)
 
         loss.backward()
         optimizer.step()
