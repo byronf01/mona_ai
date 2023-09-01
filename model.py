@@ -15,13 +15,13 @@ VOCAB_SIZE = 50257 + 1 + 1 # 51000
 PADDING = 50257 
 START_TOKEN = 50258
 LR = 6e-4 # 3e-4
-DROPOUT = 0.2
+DROPOUT = 0.1
 HEADS = 8
 NX = 8
-LR = 2e-5 # 6e-4
-BATCH_SIZE = 14
-CTX = 200
-EMBED_DIM = 512
+LR = 1e-5 # 6e-4
+BATCH_SIZE = 14 # 8
+CTX = 200 # 52
+EMBED_DIM = 512 # 128
 enc = tiktoken.get_encoding("gpt2")
 # --------------------------- # 
 
@@ -152,7 +152,7 @@ class Decoder(nn.Module):
         super().__init__()
         divided_head_size = EMBED_DIM // HEADS
         self.sa = MultiHeadAttention(divided_head_size, mask=True)
-        self.ca = CrossAttention(divided_head_size, mask=False)
+        self.ca = CrossAttention(divided_head_size, mask=True)
         self.ffwd = FeedForward(EMBED_DIM)
         self.ln1 = nn.LayerNorm(EMBED_DIM)
         self.ln2 = nn.LayerNorm(EMBED_DIM)
@@ -256,7 +256,7 @@ class CrossAttention(nn.Module):
 
     def forward(self, x, memory, src_mask, pred_mask):
 
-        out = torch.concat([h.forward(x, memory) for h in self.heads], dim=-1)
+        out = torch.concat([h.forward(x, memory, src_mask) for h in self.heads], dim=-1)
     
         # Linear transformation of outcome 
         out = self.dropout(self.proj(out))
@@ -275,7 +275,7 @@ class CrossHead(nn.Module):
         self.dropout = nn.Dropout(DROPOUT)
         self.mask = mask
 
-    def forward(self, x, memory):
+    def forward(self, x, memory, src_mask):
         
         B, T, C = x.shape
         # print('Head')
@@ -289,15 +289,25 @@ class CrossHead(nn.Module):
         
         # compute attention scores (affinities)
         # note scores divided by square root of channels to de-sharpen values for softmax later
+        
+        # Apply memory mask (src mask) to keys
+        mask_extend = src_mask[:, :T, None] 
+        key = key.masked_fill(mask_extend == 0, 0).to(device)
 
         # match query against every key
         weights = query @ key.transpose(-2, -1).to(device) * (C ** -0.5) # (B,T,C) @ (B,C,T) -> (B,T,T) 
         # print(weights.shape)
+
+        # optional mask to ignore future tokens
+        if self.mask:
+            weights = weights.masked_fill(self.tril[:T, :T] == 0, float('-inf')).to(device) # (B,T,T)
        
         # take softmax to determine each token's importance relative to any abritrary token
         weights = F.softmax(weights, dim=-1).to(device) # (B,T,T)
         # print(weights.shape)
         weights = self.dropout(weights)
+
+        
 
         # weighted aggregation of the values
         v = self.value(x).to(device) # (B,T,C)
