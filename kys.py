@@ -8,31 +8,36 @@ import sentencepiece as spm
 import torch
 import torch.nn as nn 
 from torch.nn import functional as F
+from copy import deepcopy
 import tiktoken
 import numpy as np
 
 # -------- HYPERPARMETERS --------- # 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 enc = tiktoken.get_encoding("gpt2")
-VOCAB_SIZE = 50257 + 1 + 1 # 51000
+VOCAB_SIZE = 51000 # 50257 + 1 + 1 # 51000 used because the model will stop generating the really high numbers after a while anyways?
 MAX_ITERS = 500000
 EVAL_INTERVAL = 500
 SAVE_INTERVAL = 200
 EVAL_ITERS = 50
-DROPOUT = 0.1
+DROPOUT = 0.15 # Yeah
 HEADS = 8
-NX = 8
-LR = 1e-5 # 6e-4
-BATCH_SIZE = 14 # 8
-CTX = 200 # 52
-EMBED_DIM = 568 # 128
+NX = 6
+LR = 3e-6 # 6e-4
+BATCH_SIZE = 68 # 8
+SRC_SEQ_LEN = 128 # 52
+TGT_SEQ_LEN = 186 
+EMBED_DIM = 512 # 128
+FORWARD_DIM = 2048
+MAX_PADDING = 5
 train_data = np.memmap(os.path.join('./data', 'train.bin'), dtype=np.uint16, mode='r')
 val_data = np.memmap(os.path.join('./data', 'val.bin'), dtype=np.uint16, mode='r')
 encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
 decode = lambda l: enc.decode(l)
-PADDING = 50257
+PADDING_TOKEN = 50257
 START_TOKEN = 50258
-torch.manual_seed(1337)
+DTYPE = torch.float64
+# torch.manual_seed(1337)
 # --------------------------------- # 
 
 class PositionalEncoding(nn.Module):
@@ -58,150 +63,233 @@ class PositionalEncoding(nn.Module):
 
 def get_unsupervised_batch(split):
     """
-    Generates batch data with 0-25 units of padding each. Structure of data is:
-    source = [padding + Data]
-    teacher = [padding + Start token + Data immediately following indice from input data]
-    targets = [padding + Teacher data shifted right by 1]
+    Generates batch data with (0, max padding) units of padding each. Structure of data is:
+    src = [padding + Data]
+    tgt = [padding + Start token + Data immediately following indice from input data]
+    exp = [padding + Teacher data shifted right by 1]
     """
-    max_padding = 26
     data = train_data if split == 'train' else val_data
 
-    # account for encoder input & decoder input both being max length of CTX
-    ix = torch.randint(len(data) - 2 * CTX, (BATCH_SIZE,), device=device)
-    p1, p2 = (np.random.randint(0, max_padding), np.random.randint(1, max_padding + 1))
-    source = torch.stack([torch.tensor([PADDING for _ in range(p1)] + list(data[i:i + CTX - p1]), dtype=torch.int64) for i in ix]).to(device)
-    teacher = torch.stack([torch.tensor([PADDING for _ in range(p2-1)] + [START_TOKEN] + list(data[i + CTX - p1:i - p1 - p2 + 2 * CTX]), dtype=torch.int64) for i in ix]).to(device)
-    targets = torch.stack([torch.tensor([PADDING for _ in range(p2-1)] + list(data[i + CTX - p1:i - p1 - p2 + 2 * CTX + 1]), dtype=torch.int64) for i in ix]).to(device)
+    # generate random indicies
+    ix = torch.randint(len(data) - (SRC_SEQ_LEN + TGT_SEQ_LEN), (BATCH_SIZE,), device=device)
+    p1, p2 = (np.random.randint(0, MAX_PADDING + 1), np.random.randint(1, MAX_PADDING + 1))
+    src = torch.stack([torch.tensor([PADDING_TOKEN for _ in range(p1)] + list(data[i:i + SRC_SEQ_LEN - p1]), dtype=torch.int64) for i in ix]).to(device)
+    tgt = torch.stack([torch.tensor([PADDING_TOKEN for _ in range(p2-1)] + [START_TOKEN] + list(data[i + SRC_SEQ_LEN - p1:i - p1 - p2 + SRC_SEQ_LEN + TGT_SEQ_LEN]), dtype=torch.int64) for i in ix]).to(device)
+    exp = torch.stack([torch.tensor([PADDING_TOKEN for _ in range(p2-1)] + list(data[i + SRC_SEQ_LEN - p1:i - p1 - p2 + SRC_SEQ_LEN + TGT_SEQ_LEN + 1]), dtype=torch.int64) for i in ix]).to(device)
     
-    source, teacher = source.unsqueeze(-1).repeat(1, 1, EMBED_DIM), teacher.unsqueeze(-1).repeat(1, 1, EMBED_DIM)
-    return (source, teacher, targets)
+    # idk random error might happen one day
+    assert src.shape == torch.Size([BATCH_SIZE, SRC_SEQ_LEN])
+    assert tgt.shape == torch.Size([BATCH_SIZE, TGT_SEQ_LEN])
+    assert exp.shape == torch.Size([BATCH_SIZE, TGT_SEQ_LEN])
 
-def get_masks(idx: [torch.tensor]) -> (torch.tensor):
+    # Get masks before embedding the layers
+    src_key_padding_mask, tgt_key_padding_mask = get_input_masks(src, tgt)
+
+    return (src, tgt, exp, src_key_padding_mask, tgt_key_padding_mask)
+
+def get_input_masks(src, tgt) -> (torch.tensor):
     """
-    Returns a tuple of masks for all tensors in argument
+    Returns src_key_padding_mask and tgt_key_padding_mask based on unembedded src and tgt input tensors
     """
-    return tuple(torch.tensor([[torch.ones(EMBED_DIM) if token[0] != PADDING else torch.zeros(EMBED_DIM) for token in tensor] for tensor in i]).to(device) for i in idx)
+    src_key_padding_mask = torch.tensor([[True if token == PADDING_TOKEN else False for token in tensor] for tensor in src], device=device)
+    tgt_key_padding_mask = torch.tensor([[True if token == PADDING_TOKEN else False for token in tensor] for tensor in tgt], device=device)
+    return (src_key_padding_mask, tgt_key_padding_mask)
 
-def calculate_loss(logits, targets, padding_mask):
+def calculate_loss(logits, exp):
 
-    B, T, C = logits.shape
-    
-    # Resizing of logits and targets
-    logits = logits.view(B * T, C).to(device)
-    targets = targets.view(B * T).to(device)
-    ignore_mask = padding_mask.view(B * T).to(device)
-    # print(logits.shape, targets.shape, weights.shape)
-    # print(weights)
-    # Weights?
+    T, B, C = logits.shape
+    logits = logits.reshape(T * B, C).to(device)
+    exp = torch.transpose(exp, 0, 1).to(device)
+    exp = exp.reshape(T * B).to(device)
 
-    # loss1 = F.cross_entropy(logits, targets)
+    # Ignore tokens not valid in vocabulary (assums that padding token is set to first number above the vocab size of gpt2)
+    weights = torch.tensor([1.0 for _ in range(PADDING_TOKEN)] + [0.0 for _ in range(VOCAB_SIZE - PADDING_TOKEN)], device=device) 
+    loss = F.cross_entropy(logits, exp, weight=weights)
+    return(loss)
 
-    loss2 = torch.tensor(0.0, device=logits.device)
-    valid_batches = 0
-    for i in range(len(logits)):
-        if ignore_mask[i] == 1:
-            loss = F.cross_entropy(logits[i], targets[i])
-            loss2 += loss
-            valid_batches += 1
-    loss2 = loss2 / valid_batches if valid_batches > 0 else 0.0
+@torch.no_grad()
+def estimate_loss(model, tgt_mask):
+    out = {}
+    model.eval()
+    for split in ('train', 'val'):
+        losses = torch.zeros(EVAL_ITERS, device=device)
+        for k in range(EVAL_ITERS):
+            src, tgt, exp, src_k_pad_mask, tgt_k_pad_mask = get_unsupervised_batch('train')
+            tgt_mask_copy = torch.clone(tgt_mask)
+            mem_k_pad_mask = torch.clone(src_k_pad_mask)
+            logits = model(src, tgt, tgt_mask=tgt_mask_copy, src_key_padding_mask=src_k_pad_mask, tgt_key_padding_mask=tgt_k_pad_mask, 
+                memory_key_padding_mask=mem_k_pad_mask)
+            loss = calculate_loss(logits, exp)
+            losses[k] = loss.item()
+        out[split] = losses.mean()
+    model.train()
+    return out
 
-    # print(loss1, loss2)
-    return loss2
-
-def generate(model, x, src_mask):
+def generate(model, prompt: str):
     """
     Generates output from the model. Stops generating when end of text token generates.
-    x: 1 x N tensor
     """
+    model.eval()
+    # Encode the prompt
+    prompt = encode(prompt)
+    src = torch.tensor([[PADDING_TOKEN for _ in range(SRC_SEQ_LEN - len(prompt) )] + prompt], dtype=torch.long, device=device)
     
-    output = []
-    predict = torch.tensor([[PADDING for _ in range(CTX)] for _ in range(1)]).to(device)
-    end = False
-    failsafe = CTX + int(0.5 * CTX)
+    # Starting variables
+    output_txt = []
+    end_of_txt = False
+    max_chars = TGT_SEQ_LEN * 2 
+    src_mask = torch.tensor([[True if token == PADDING_TOKEN else False for token in tensor] for tensor in src], device=device)
+    tgt_mask = base.masked_fill(torch.triu(torch.ones(TGT_SEQ_LEN, TGT_SEQ_LEN)) == 0, True).to(device) # Erm 
+
+    # Tgt tensor starts empty
+    tgt = torch.tensor([[PADDING_TOKEN for _ in range(TGT_SEQ_LEN - 1)] + [START_TOKEN] for _ in range(1)]).to(device) 
 
     while True:
         
-        # Make mask for decoder outputs 
-        pred_mask = torch.tensor([[0 if token == PADDING else 1 for token in tensor] for tensor in predict]).to(device)
+        # Make masks 
+        tgt_k_pad_mask = torch.tensor([[True if token == PADDING_TOKEN else False for token in tensor] for tensor in tgt], device=device)
+        mem_k_pad_mask = torch.clone(src_mask)
 
         # One step in model
-        logits = model(x, predict, src_mask, pred_mask)
-        print(logits.shape)
+        logits = model(src, tgt, tgt_mask=tgt_mask, src_key_padding_mask=src_mask, tgt_key_padding_mask=tgt_k_pad_mask, 
+               memory_key_padding_mask=mem_k_pad_mask)
 
+        # Make sense of probabilities
+        logits = torch.transpose(logits, 0, 1)
         probs = F.softmax(logits[:, -1, :], dim=-1)
+        next = torch.multinomial(probs, num_samples=1).to(device)
 
-        x_next = torch.multinomial(probs, num_samples=1).to(device)
-
-        if x_next[0][0] == enc.encode('<|endoftext|>', allowed_special={'<|endoftext|>'})[0]:
-            end = True
+        if next[0][0] == enc.encode('<|endoftext|>', allowed_special={'<|endoftext|>'})[0]:
+            end_of_txt = True
 
         # Move newly generated token to predicted sequence
-        predict = torch.cat((predict, x_next), dim=1)
-        predict = predict[:,-CTX:]
-        output += x_next.tolist()[0]
+        tgt = torch.cat((tgt, next), dim=1)
+        tgt = tgt[:,-TGT_SEQ_LEN:]
+        tgt.to(device)
+        output_txt += next.tolist()[0]
 
-        if end: break
+        if end_of_txt: break
 
-        if failsafe > 0: failsafe -= 1
-        else: break
+        if max_chars > 0: 
+            max_chars -= 1
+        else: 
+            break
 
-    return output
+    model.train()
+    return decode(output_txt)
+
+class TransformerModel(nn.Module):
+
+    def __init__(self, d_model=512, nhead=8, num_encoder_layers=6, num_decoder_layers=6, dim_feedforward=2048, 
+                 dropout=0.1, activation=nn.ReLU(), custom_encoder=None, custom_decoder=None, 
+                 layer_norm_eps=1e-05, batch_first=False, norm_first=False, device=None, dtype=None):
+        
+        super().__init__()
+        self.src_embedding = nn.Embedding(VOCAB_SIZE, d_model)
+        self.tgt_embedding = nn.Embedding(VOCAB_SIZE, d_model)
+        self.pos_encode = PositionalEncoding(EMBED_DIM).to(device)
+        self.transformer = nn.Transformer(d_model=d_model, nhead=nhead, num_encoder_layers=num_encoder_layers, 
+                                    num_decoder_layers=num_decoder_layers, dim_feedforward=dim_feedforward, dropout=dropout, 
+                                    activation=activation, custom_encoder=custom_encoder, custom_decoder=custom_decoder,
+                                    layer_norm_eps=layer_norm_eps, batch_first=batch_first, norm_first=norm_first,
+                                    device=device, dtype=dtype)
+        self.final_layer = nn.Linear(d_model, VOCAB_SIZE)
+
+    def forward(self, src, tgt, src_mask=None, tgt_mask=None, memory_mask=None, src_key_padding_mask=None, 
+                tgt_key_padding_mask=None, memory_key_padding_mask=None):
+        """
+        Arguments:
+        src: ```[batch, src seq]```
+        tgt: ```[batch, tgt seq]```
+        the rest are same as torch.nn.Transformer
+        """
+        # Pass through first embedding layer
+        src = self.src_embedding(src)
+        tgt = self.tgt_embedding(tgt)
+
+        # Change dimensions of src and tgt for model
+        src = torch.transpose(src, 0, 1).to(device)
+        tgt = torch.transpose(tgt, 0, 1).to(device)
+
+        # Add positional encoding
+        src = self.pos_encode(src)
+        tgt = self.pos_encode(tgt)
+
+        # Forward pass through torch transformer
+        output = self.transformer(src, tgt, src_mask=src_mask, tgt_mask=tgt_mask, memory_mask=memory_mask,
+                        src_key_padding_mask=src_key_padding_mask, tgt_key_padding_mask=tgt_key_padding_mask,
+                        memory_key_padding_mask=memory_key_padding_mask)
+        
+        # Pass output through final linear layer
+        output = self.final_layer(output)
+        return output
 
 if __name__ == '__main__':
 
-    
-    start = "What's the strangest thing you've ever done"
-    start_ids = encode(start)
-    while len(start_ids) < CTX: start_ids = [PADDING] + start_ids
-    x = torch.tensor([start_ids for _ in range(1)], dtype=torch.long, device=device).unsqueeze(-1).repeat(1, 1, EMBED_DIM)
-    print(x.shape)
-    start_mask = get_masks([x])[0]
+    # tgt_mask, constant mask for attention in decoder
+    base = torch.tensor([[False for _ in range(TGT_SEQ_LEN)] for _ in range(TGT_SEQ_LEN)])
+    tgt_mask = base.masked_fill(torch.triu(torch.ones(TGT_SEQ_LEN, TGT_SEQ_LEN)) == 0, True).to(device)
 
     # Setting up the model
     if 'load' not in sys.argv:
-        m = nn.Transformer(d_model=EMBED_DIM, nhead=HEADS, num_encoder_layers=NX, num_decoder_layers=NX,
-                                       dim_feedforward=2048, dropout=DROPOUT, activation=nn.ReLU(), batch_first=True, 
-                                       norm_first=True, device=None, dtype=torch.float64)
-        m.to(device)
+        model = TransformerModel(d_model=EMBED_DIM, nhead=HEADS, num_encoder_layers=NX, num_decoder_layers=NX,
+                                       dim_feedforward=FORWARD_DIM, dropout=DROPOUT, activation=nn.ReLU(),
+                                       norm_first=True, device=device)
+        model.to(device)
         checkpoint = 0
     else:
         iter = sys.argv[-1]
-        m = torch.load(f'models/epoch{iter}.pth')
+        model = torch.load(f'models/epoch{iter}.pth')
         checkpoint = int(iter)
-    
-    print('Before: ')
-    m.eval()
-    out = generate(m, x, start_mask)
-    out = [0 if token == PADDING else token for token in out]
-    print(decode( out ))
-    m.train()
-    
+
+    # Sample from the model
+    response = generate(model, "What is the strangest thing that has ever happened to you or someone you know? ")
+    print("Q: What is the strangest thing that has ever happened to you or someone you know?")
+    print("A: " + response)
+    print(len(response))
+
+    """
     start = time.time()
     # create torch optimizer
-    optimizer = torch.optim.AdamW(m.parameters(), lr=LR)
-    for iter in range(checkpoint, MAX_ITERS):
-
-        source, teacher, targets = get_unsupervised_batch('train')
-        src_mask, teacher_mask, target_mask = get_masks([source, teacher, targets])
-        logits = m(source, teacher, src_mask, teacher_mask)
-        print(type(logits))
-        print(logits.shape)
-        optimizer.zero_grad(set_to_none=True)
-
-        loss = calculate_loss(logits, targets, target_mask)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
+    for iter in range(checkpoint + 1, MAX_ITERS):
+        
+        src, tgt, exp, src_k_pad_mask, tgt_k_pad_mask = get_unsupervised_batch('train')
+        
+        # Prevent weird memory errors
+        tgt_mask_copy = torch.clone(tgt_mask)
+        mem_k_pad_mask = torch.clone(src_k_pad_mask)
+        
+        # Get logits from model
+        logits = model(src, tgt, tgt_mask=tgt_mask_copy, src_key_padding_mask=src_k_pad_mask, tgt_key_padding_mask=tgt_k_pad_mask, 
+               memory_key_padding_mask=mem_k_pad_mask)
+        loss = calculate_loss(logits, exp)
+        with open('graph_data.txt', 'a') as f:
+            f.write(f'Epoch {iter}: {str(loss.item())}\n')
 
         loss.backward()
         optimizer.step()
 
         # periodically evaluate loss on training and validation sets
         if iter % EVAL_INTERVAL == 0:
-            losses = estimate_loss(m)
+            losses = estimate_loss(model, tgt_mask)
             print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}, {(time.time() - start):.5f} time elapsed")
 
         # periodically save the model
         if iter % SAVE_INTERVAL == 0:
-            torch.save(m, f'models/epoch{iter}.pth')
-        
-    print('After: ')
-    print(decode(m.generate(x, max_new_tokens=3000)[0].tolist() ))
+            torch.save(model, f'models/epoch{iter}.pth')
+    """
 
+# learning rate decay scheduler (cosine with warmup)
+def get_lr(it):
+    # 1) linear warmup for warmup_iters steps
+    if it < warmup_iters:
+        return learning_rate * it / warmup_iters
+    # 2) if it > lr_decay_iters, return min learning rate
+    if it > lr_decay_iters:
+        return min_lr
+    # 3) in between, use cosine decay down to min learning rate
+    decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
+    assert 0 <= decay_ratio <= 1
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
+    return min_lr + coeff * (learning_rate - min_lr)
