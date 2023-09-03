@@ -16,15 +16,16 @@ import numpy as np
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 enc = tiktoken.get_encoding("gpt2")
 VOCAB_SIZE = 51000 # 50257 + 1 + 1 # 51000 used because the model will stop generating the really high numbers after a while anyways?
-MAX_ITERS = 500000
+MAX_ITERS = 100000
 EVAL_INTERVAL = 500
 SAVE_INTERVAL = 200
 EVAL_ITERS = 50
 DROPOUT = 0.15 # Yeah
 HEADS = 8
 NX = 6
-LR = 3e-6 # 6e-4
-BATCH_SIZE = 68 # 8
+LR_MAX = 7e-4 # 6e-4
+WARMUP_STEPS = 4000
+BATCH_SIZE = 70 # 8
 SRC_SEQ_LEN = 128 # 52
 TGT_SEQ_LEN = 186 
 EMBED_DIM = 512 # 128
@@ -224,6 +225,17 @@ class TransformerModel(nn.Module):
         output = self.final_layer(output)
         return output
 
+def get_lr(iter):
+    """
+    learning rate decay scheduler (linear warmup then inverse square)
+    """
+    if iter < WARMUP_STEPS:
+        lr = iter / WARMUP_STEPS * LR_MAX 
+    else:
+        lr = (EMBED_DIM ** -0.5) * min(iter ** -0.5, iter * (WARMUP_STEPS ** -1.5) )
+    return lr
+
+
 if __name__ == '__main__':
 
     # tgt_mask, constant mask for attention in decoder
@@ -241,22 +253,29 @@ if __name__ == '__main__':
         iter = sys.argv[-1]
         model = torch.load(f'models/epoch{iter}.pth')
         checkpoint = int(iter)
-
+    """
     # Sample from the model
     response = generate(model, "What is the strangest thing that has ever happened to you or someone you know? ")
     print("Q: What is the strangest thing that has ever happened to you or someone you know?")
     print("A: " + response)
     print(len(response))
-
     """
+    
+    # create torch optimizer and learning rate scheduler
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LR_MAX)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, get_lr)
     start = time.time()
-    # create torch optimizer
-    optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
+
     for iter in range(checkpoint + 1, MAX_ITERS):
+
+        # Set new learning rate
+        lr = get_lr(iter)
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
         
         src, tgt, exp, src_k_pad_mask, tgt_k_pad_mask = get_unsupervised_batch('train')
         
-        # Prevent weird memory errors
+        # Prevent weird memory errors (?)
         tgt_mask_copy = torch.clone(tgt_mask)
         mem_k_pad_mask = torch.clone(src_k_pad_mask)
         
@@ -270,6 +289,9 @@ if __name__ == '__main__':
         loss.backward()
         optimizer.step()
 
+        # Flush gradients
+        optimizer.zero_grad(set_to_none=True)
+
         # periodically evaluate loss on training and validation sets
         if iter % EVAL_INTERVAL == 0:
             losses = estimate_loss(model, tgt_mask)
@@ -278,18 +300,4 @@ if __name__ == '__main__':
         # periodically save the model
         if iter % SAVE_INTERVAL == 0:
             torch.save(model, f'models/epoch{iter}.pth')
-    """
 
-# learning rate decay scheduler (cosine with warmup)
-def get_lr(it):
-    # 1) linear warmup for warmup_iters steps
-    if it < warmup_iters:
-        return learning_rate * it / warmup_iters
-    # 2) if it > lr_decay_iters, return min learning rate
-    if it > lr_decay_iters:
-        return min_lr
-    # 3) in between, use cosine decay down to min learning rate
-    decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
-    assert 0 <= decay_ratio <= 1
-    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
-    return min_lr + coeff * (learning_rate - min_lr)
