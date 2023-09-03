@@ -31,6 +31,7 @@ TGT_SEQ_LEN = 186
 EMBED_DIM = 512 # 128
 FORWARD_DIM = 2048
 MAX_PADDING = 5
+GRAD_CLIP = 1
 train_data = np.memmap(os.path.join('./data', 'train.bin'), dtype=np.uint16, mode='r')
 val_data = np.memmap(os.path.join('./data', 'val.bin'), dtype=np.uint16, mode='r')
 encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
@@ -136,7 +137,7 @@ def generate(model, prompt: str):
     src = torch.tensor([[PADDING_TOKEN for _ in range(SRC_SEQ_LEN - len(prompt) )] + prompt], dtype=torch.long, device=device)
     
     # Starting variables
-    output_txt = []
+    output_txt = ''
     end_of_txt = False
     max_chars = TGT_SEQ_LEN * 2 
     src_mask = torch.tensor([[True if token == PADDING_TOKEN else False for token in tensor] for tensor in src], device=device)
@@ -160,14 +161,19 @@ def generate(model, prompt: str):
         probs = F.softmax(logits[:, -1, :], dim=-1)
         next = torch.multinomial(probs, num_samples=1).to(device)
 
+        # Check specific cases for tokens
         if next[0][0] == enc.encode('<|endoftext|>', allowed_special={'<|endoftext|>'})[0]:
             end_of_txt = True
+        elif next[0][0] >= PADDING_TOKEN: 
+            output_txt += '<|?|>'
+        else:
+            token = next.tolist()[0]
+            output_txt += decode(token)
 
         # Move newly generated token to predicted sequence
         tgt = torch.cat((tgt, next), dim=1)
         tgt = tgt[:,-TGT_SEQ_LEN:]
         tgt.to(device)
-        output_txt += next.tolist()[0]
 
         if end_of_txt: break
 
@@ -177,7 +183,7 @@ def generate(model, prompt: str):
             break
 
     model.train()
-    return decode(output_txt)
+    return output_txt
 
 class TransformerModel(nn.Module):
 
@@ -249,9 +255,14 @@ if __name__ == '__main__':
                                        norm_first=True, device=device)
         model.to(device)
         checkpoint = 0
+        optimizer = torch.optim.AdamW(model.parameters(), lr=LR_MAX)
     else:
         iter = sys.argv[-1]
-        model = torch.load(f'models/epoch{iter}.pth')
+        loaded = torch.load(f'models/epoch{iter}.pth', map_location=device)
+        model = loaded['model_args']
+        optimizer = torch.optim.AdamW(model.parameters(), lr=LR_MAX)
+        optimizer.load_state_dict(loaded['optim_state_dict'])
+        loaded = None
         checkpoint = int(iter)
     """
     # Sample from the model
@@ -261,9 +272,6 @@ if __name__ == '__main__':
     print(len(response))
     """
     
-    # create torch optimizer and learning rate scheduler
-    optimizer = torch.optim.AdamW(model.parameters(), lr=LR_MAX)
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, get_lr)
     start = time.time()
 
     for iter in range(checkpoint + 1, MAX_ITERS):
@@ -286,7 +294,9 @@ if __name__ == '__main__':
         with open('graph_data.txt', 'a') as f:
             f.write(f'Epoch {iter}: {str(loss.item())}\n')
 
+        # Backward pass with gradient clipping
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP)
         optimizer.step()
 
         # Flush gradients
@@ -299,5 +309,7 @@ if __name__ == '__main__':
 
         # periodically save the model
         if iter % SAVE_INTERVAL == 0:
-            torch.save(model, f'models/epoch{iter}.pth')
-
+            torch.save({
+                'model_state_dict': model.state_dict(),
+                'optim_state_dict': optimizer.state_dict(),
+            }, f'models/epoch{iter}.pth')
