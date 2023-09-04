@@ -12,20 +12,22 @@ from copy import deepcopy
 import tiktoken
 import numpy as np
 
+
+
 # -------- HYPERPARMETERS --------- # 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 enc = tiktoken.get_encoding("gpt2")
 VOCAB_SIZE = 51000 # 50257 + 1 + 1 # 51000 used because the model will stop generating the really high numbers after a while anyways?
 MAX_ITERS = 100000
 EVAL_INTERVAL = 500
-SAVE_INTERVAL = 200
+SAVE_INTERVAL = 100
 EVAL_ITERS = 50
 DROPOUT = 0.15 # Yeah
 HEADS = 8
 NX = 6
 LR_MAX = 7e-4 # 6e-4
 WARMUP_STEPS = 4000
-BATCH_SIZE = 70 # 8
+BATCH_SIZE = 66 # 8
 SRC_SEQ_LEN = 128 # 52
 TGT_SEQ_LEN = 186 
 EMBED_DIM = 512 # 128
@@ -141,7 +143,7 @@ def generate(model, prompt: str):
     end_of_txt = False
     max_chars = TGT_SEQ_LEN * 2 
     src_mask = torch.tensor([[True if token == PADDING_TOKEN else False for token in tensor] for tensor in src], device=device)
-    tgt_mask = base.masked_fill(torch.triu(torch.ones(TGT_SEQ_LEN, TGT_SEQ_LEN)) == 0, True).to(device) # Erm 
+    tgt_mask = base.masked_fill(torch.triu(torch.ones(TGT_SEQ_LEN, TGT_SEQ_LEN)) == 0, True).to(device)
 
     # Tgt tensor starts empty
     tgt = torch.tensor([[PADDING_TOKEN for _ in range(TGT_SEQ_LEN - 1)] + [START_TOKEN] for _ in range(1)]).to(device) 
@@ -244,26 +246,32 @@ def get_lr(iter):
 
 if __name__ == '__main__':
 
-    # tgt_mask, constant mask for attention in decoder
     base = torch.tensor([[False for _ in range(TGT_SEQ_LEN)] for _ in range(TGT_SEQ_LEN)])
     tgt_mask = base.masked_fill(torch.triu(torch.ones(TGT_SEQ_LEN, TGT_SEQ_LEN)) == 0, True).to(device)
 
     # Setting up the model
-    if 'load' not in sys.argv:
-        model = TransformerModel(d_model=EMBED_DIM, nhead=HEADS, num_encoder_layers=NX, num_decoder_layers=NX,
+    model = TransformerModel(d_model=EMBED_DIM, nhead=HEADS, num_encoder_layers=NX, num_decoder_layers=NX,
                                        dim_feedforward=FORWARD_DIM, dropout=DROPOUT, activation=nn.ReLU(),
                                        norm_first=True, device=device)
-        model.to(device)
+    model.to(device)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LR_MAX)
+
+    if 'load' not in sys.argv:
         checkpoint = 0
-        optimizer = torch.optim.AdamW(model.parameters(), lr=LR_MAX)
     else:
         iter = sys.argv[-1]
+
+        # Load model and optimizer states from checkpoint
         loaded = torch.load(f'models/epoch{iter}.pth', map_location=device)
-        model = loaded['model_args']
-        optimizer = torch.optim.AdamW(model.parameters(), lr=LR_MAX)
+        model.load_state_dict(loaded['model_state_dict'])
         optimizer.load_state_dict(loaded['optim_state_dict'])
-        loaded = None
         checkpoint = int(iter)
+
+        # Free up memory
+        del loaded
+        if device == 'cuda:0':
+            torch.cuda.empty_cache()
+        
     """
     # Sample from the model
     response = generate(model, "What is the strangest thing that has ever happened to you or someone you know? ")
@@ -273,7 +281,7 @@ if __name__ == '__main__':
     """
     
     start = time.time()
-
+    model.train()
     for iter in range(checkpoint + 1, MAX_ITERS):
 
         # Set new learning rate
@@ -283,12 +291,12 @@ if __name__ == '__main__':
         
         src, tgt, exp, src_k_pad_mask, tgt_k_pad_mask = get_unsupervised_batch('train')
         
-        # Prevent weird memory errors (?)
-        tgt_mask_copy = torch.clone(tgt_mask)
+        # Get other masks
+        tgt_mask_clone = torch.clone(tgt_mask)
         mem_k_pad_mask = torch.clone(src_k_pad_mask)
         
         # Get logits from model
-        logits = model(src, tgt, tgt_mask=tgt_mask_copy, src_key_padding_mask=src_k_pad_mask, tgt_key_padding_mask=tgt_k_pad_mask, 
+        logits = model(src, tgt, tgt_mask=tgt_mask_clone, src_key_padding_mask=src_k_pad_mask, tgt_key_padding_mask=tgt_k_pad_mask, 
                memory_key_padding_mask=mem_k_pad_mask)
         loss = calculate_loss(logits, exp)
         with open('graph_data.txt', 'a') as f:
@@ -299,7 +307,7 @@ if __name__ == '__main__':
         torch.nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP)
         optimizer.step()
 
-        # Flush gradients
+        # Free up memory
         optimizer.zero_grad(set_to_none=True)
 
         # periodically evaluate loss on training and validation sets
