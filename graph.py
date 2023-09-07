@@ -12,7 +12,7 @@ with open('graph_data.txt', 'r') as f:
         x.append(int(data[0]))
         y.append(float(data[1]))
 
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(15, 9))
 plt.plot(x, y)
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
