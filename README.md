@@ -4,7 +4,7 @@ Original procedure was to follow the same steps that InstructGPT was trained on,
 
 Currently training the model to replicate GPT-2, using the [OpenWebText](https://huggingface.co/datasets/Skylion007/openwebtext) dataset
 
-![trainloss-9 6](https://github.com/byronf01/mona_ai/assets/89189391/14b2c10a-baf2-4369-b016-c1dc3d4eed59)
+![trainloss-9 6](https://github.com/byronf01/mona_ai/assets/89189391/3767da79-0ed3-495c-a2cf-500c30caaab2)
 
 Sources consulted:
  - Original transformer paper: [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
